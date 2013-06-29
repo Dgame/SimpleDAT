@@ -1,4 +1,14 @@
-﻿test.d:
+﻿Check your (named) imports for unused or underused ones.
+<hr />
+Use:
+<pre>
+	--f		scan multiple or one file(s)
+	--d		scan a whole path
+	--use	for the minimal use (default is 1)
+	--info	for used lines
+</pre>
+<hr />
+test.d:
 <pre>
 module test;
 
