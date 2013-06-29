@@ -47,7 +47,7 @@ public:
 }
 
 void main(string[] args) {
-	version(all) {
+	version(none) {
 		version(none)
 			const string content = cast(string) read("D:/D/dmd2/src/phobos/std/stdio.d");
 		else {
