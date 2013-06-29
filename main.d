@@ -14,7 +14,7 @@ immutable string Import = "import";
 enum Protection : string {
 	Public = "public",
 	Private = "private",
-	Protected =  "protected",
+	Protected = "protected",
 	Package = "package"
 }
 
@@ -36,20 +36,27 @@ struct Imports {
 public:
 	const Protection prot;
 	const uint line;
+	const bool protBlock;
 	NamedImport[] imports;
+	
+	this(Protection prot, uint line, bool protBlock) {
+		this.prot = prot;
+		this.line = line;
+		this.protBlock = protBlock;
+	}
 }
 
 void main(string[] args) {
-	/*debug {
-	 version(none)
-	 const string content = cast(string) read("D:/D/dmd2/src/phobos/std/stdio.d");
-	 else {
-	 const string content = cast(string) read("../../test.d");
-	 //			const string content = cast(string) read("../../main.d");
-	 }
-	 
-	 warnForUnusedImports(content.splitLines(), 2, true);
-	 } else */
+	version(all) {
+		version(none)
+			const string content = cast(string) read("D:/D/dmd2/src/phobos/std/stdio.d");
+		else {
+			const string content = cast(string) read("../../test.d");
+			//			const string content = cast(string) read("../../main.d");
+		}
+		
+		warnForUnusedImports(content.splitLines(), 2, true);
+	} else 
 	if (args.length > 1) {
 		string files;
 		string path;
@@ -138,15 +145,12 @@ private bool checkForComment(const string line, ref bool[2] comment) {
 
 private Protection checkProtection(const string[] words, uint wnr) {
 	if (wnr != 0) {
-		switch (words[wnr - 1]) {
+		switch (words[wnr - 1].strip()) {
 			case Protection.Package:
 			case Protection.Private:
 			case Protection.Protected:
 			case Protection.Public:
-				return cast(Protection) words[wnr - 1];
-			case "{":
-			case ":":
-				return checkProtection(words, wnr - 1);
+				return cast(Protection) words[wnr - 1].strip();
 			default: 
 				return Protection.Private;
 		}
@@ -157,6 +161,7 @@ private Protection checkProtection(const string[] words, uint wnr) {
 
 string[] findUnusedImports(string[] lines, uint minUse = 1, bool info = false) {
 	Imports[string] namedImports;
+	Imports*[] lastImports;
 	
 	bool[2] comment = false;
 	
@@ -178,7 +183,16 @@ string[] findUnusedImports(string[] lines, uint minUse = 1, bool info = false) {
 			
 			if (word.length > 1) {
 				if (word == Import) {
-					Protection prot = checkProtection(words, wnr);
+					Protection prot = void;
+					bool protBlock = false;
+					
+					if (nr != 0 && (lines[nr - 1].endsWith('{') || lines[nr - 1].endsWith(':'))) {
+						protBlock = true;
+						
+						string[] tempWords = lines[nr - 1].split("" ~ lines[nr - 1][$ - 1]);
+						prot = checkProtection(tempWords, tempWords.length - 1);
+					} else
+						prot = checkProtection(words, wnr);
 					
 					if (line.indexOf(':') != -1) {
 						string[2] splitter = line.split(":");
@@ -186,7 +200,19 @@ string[] findUnusedImports(string[] lines, uint minUse = 1, bool info = false) {
 						
 						const string impName = splitter[0].split()[wnr + 1].strip();
 						
-						namedImports[impName] = Imports(prot, nr);
+						/// Protection inheritance
+						if (wnr == 0 && !protBlock && lastImports.length != 0 && lastImports[$ - 1].protBlock) {
+							if (nr != 0 && lines[nr - 1].endsWith('}')) {
+								/// do nothing
+							} else {
+								protBlock = true;
+								prot = lastImports[$ - 1].prot;
+							}
+						}
+						
+						namedImports[impName] = Imports(prot, nr, protBlock);
+						lastImports ~= &namedImports[impName];
+						
 						foreach (name; named) {
 							if (name.indexOf(';') != -1)
 								name = name[0 .. $ - 1];
