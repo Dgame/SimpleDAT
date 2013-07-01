@@ -1,13 +1,12 @@
-module main;
-
 import std.stdio;
-import std.file : read, dirEntries, SpanMode;
+import std.file : dirEntries, SpanMode;
 import std.array : split;
-import std.string : splitLines, indexOf, strip, format;
-import std.algorithm : startsWith, endsWith;
-import std.ascii : isAlpha;
+import std.string : strip, format;
+import std.algorithm : endsWith;
 import std.conv : text;
 import std.getopt : getopt;
+
+import DAT.Lexer;
 
 immutable string Import = "import";
 
@@ -19,10 +18,10 @@ enum Protection : string {
 }
 
 struct NamedImport {
-	const string name;
+	const char[] name;
 	uint[] useLines;
 	
-	this(string name) {
+	this(const char[] name) {
 		this.name = name;
 	}
 	
@@ -37,6 +36,7 @@ public:
 	const Protection prot;
 	const uint line;
 	const bool protBlock;
+	
 	NamedImport[] imports;
 	
 	this(Protection prot, uint line, bool protBlock) {
@@ -49,13 +49,11 @@ public:
 void main(string[] args) {
 	version(none) {
 		version(none)
-			const string content = cast(string) read("D:/D/dmd2/src/phobos/std/stdio.d");
-		else {
-			const string content = cast(string) read("../../test.d");
-			//			const string content = cast(string) read("../../main.d");
-		}
+			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d";
+		else
+			const string filename = "../../main.d";
 		
-		warnForUnusedImports(content.splitLines(), 2, true);
+		warnForUnusedImports(filename, 2, true);
 	} else 
 	if (args.length > 1) {
 		string files;
@@ -73,8 +71,7 @@ void main(string[] args) {
 			string content;
 			foreach (string filename; filenames) {
 				if (filename.endsWith(".d")) {
-					content = cast(string) read(filename.strip());
-					warnForUnusedImports(content.splitLines(), minUseCount > 0 ? minUseCount : 1, info);
+					warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
 				}
 			}
 		} else if (path.length != 0) {
@@ -88,8 +85,7 @@ void main(string[] args) {
 			string content;
 			foreach (string filename; filenames) {
 				if (filename.endsWith(".d")) {
-					content = cast(string) read(filename);
-					warnForUnusedImports(content.splitLines(), minUseCount > 0 ? minUseCount : 1, info);
+					warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
 				}
 			}
 		}
@@ -97,189 +93,113 @@ void main(string[] args) {
 		writeln("--f \t scan multiple or one file(s)\n--d \t scan a whole path\n--use \t for the minimal use (default is 1)\n--info \t for used lines\n");
 	}
 } unittest {
-	static assert(Import == "import");
-	
-	string content = cast(string) read("D:/D/dmd2/src/phobos/std/stdio.d");
-	string[] output = findUnusedImports(content.splitLines(), 2, true);
+	string[] output = findUnusedImports("D:/D/dmd2/src/phobos/std/stdio.d", 2, true);
 	
 	assert(output.length == 1);
 	assert(output[0] == "Named import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]", "Output is: " ~ output[0]);
 	
-	content = cast(string) read("../../test.d");
-	output = findUnusedImports(content.splitLines(), 2, false);
+	output = findUnusedImports("../../test.d", 2, false);
 	
 	assert(output.length == 6);
-	assert(output[0] == "Named import std.string : format imported on line 5 is never used.", "Output is: " ~ output[0]);
-	assert(output[1] == "Named import std.string : strip imported on line 5 is used 1 times.", "Output is: " ~ output[1]);
-	assert(output[2] == "Named import std.array : split imported on line 6 is never used.", "Output is: " ~ output[2]);
-	assert(output[3] == "Named import std.array : join imported on line 6 is never used.", "Output is: " ~ output[3]);
-	assert(output[4] == "Named import std.array : empty imported on line 6 is used 1 times.", "Output is: " ~ output[4]);
-	assert(output[5] == "Named import std.file : read imported on line 4 is never used.", "Output is: " ~ output[5]);
+	assert(output[0] == "Named import std.string : format imported on line 6 is never used.", "Output is: " ~ output[0]);
+	assert(output[1] == "Named import std.string : strip imported on line 6 is used 1 times.", "Output is: " ~ output[1]);
+	assert(output[2] == "Named import std.array : split imported on line 8 is never used.", "Output is: " ~ output[2]);
+	assert(output[3] == "Named import std.array : join imported on line 8 is never used.", "Output is: " ~ output[3]);
+	assert(output[4] == "Named import std.array : empty imported on line 8 is used 1 times.", "Output is: " ~ output[4]);
+	assert(output[5] == "Named import std.file : read imported on line 5 is never used.", "Output is: " ~ output[5]);
 }
 
-void warnForUnusedImports(string[] lines, uint minUse = 1, bool info = false) {
-	foreach (string msg; findUnusedImports(lines, minUse, info)) {
+void warnForUnusedImports(string filename, uint minUse = 1, bool info = false) {
+	foreach (string msg; findUnusedImports(filename, minUse, info)) {
 		writeln(msg);
 	}
 }
 
-private bool checkForComment(const string line, ref bool[2] comment) {
-	/// Line comment
-	if (line.startsWith("//"))
-		return false;
+private Protection checkProtection(ref Lexer lex, bool* block) {
+	Token* prev = &lex.token;
 	
-	if (comment[0] && line.endsWith("*/"))
-		comment[0] = false;
-	
-	if (comment[1] && line.endsWith("+/"))
-		comment[1] = false;
-	
-	if (line.startsWith("/*"))
-		comment[0] = true;
-	
-	if (line.startsWith("/+"))
-		comment[1] = true;
-	
-	return true;
-}
-
-private Protection checkProtection(const string[] words, uint wnr) {
-	if (wnr != 0) {
-		switch (words[wnr - 1].strip()) {
+	while (prev.type != Tok.Semicolon && prev.type != Tok.RCurly && prev.type != Tok.None) {
+		switch (prev.toChars()) {
 			case Protection.Package:
 			case Protection.Private:
 			case Protection.Protected:
 			case Protection.Public:
-				return cast(Protection) words[wnr - 1].strip();
-			default: 
-				return Protection.Private;
+				if (prev.next.type == Tok.Colon || prev.next.type == Tok.LCurly)
+					*block = true;
+				
+				return cast(Protection) prev.toChars();
+			default: break;
 		}
+		
+		prev = prev.prev;
 	}
 	
 	return Protection.Private;
 }
 
-string[] findUnusedImports(string[] lines, uint minUse = 1, bool info = false) {
-	Imports[string] namedImports;
+string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) {
+	Lexer lex = Lexer(filename);
+	
+	Imports[string] imps;
 	Imports*[] lastImports;
 	
-	bool[2] comment = false;
-	
-	foreach (uint nr, string line; lines) {
-		line = line.strip();
-		if (line.length == 0)
-			continue;
+	while (lex.token.type != Tok.Eof) {
+		lex.nextToken();
 		
-		if (!checkForComment(line, comment))
-			continue;
-		
-		if (comment[0] || comment[1])
-			continue;
-		
-		string[] words = line.split();
-		foreach (uint wnr, string word; words) {
-			if (word.indexOf('"') != -1)
-				break;
+		if (lex.token == Import) {
+			bool protBlock = false;
+			Protection prot = checkProtection(lex, &protBlock);
 			
-			if (word.length > 1) {
-				if (word == Import) {
-					Protection prot = void;
-					bool protBlock = false;
+			if (lex.token.prev.type != Tok.RCurly && !protBlock
+			    && lastImports.length != 0 && lastImports[$ - 1].protBlock)
+			{
+				prot = lastImports[$ - 1].prot;
+				protBlock = true;
+			}
+			
+			Imports curImp = Imports(prot, lex.loc.lineNum, protBlock);
+			string impName;
+			
+			lex.nextToken();
+			
+			bool take = false;
+			while (lex.token.type != Tok.Semicolon) {
+				if (take && lex.token.isIdentifier()) {
+					imps[impName].imports ~= NamedImport(lex.token.toChars());
+				}
+				
+				if (lex.token.type == Tok.Colon) {
+					take = true;
 					
-					if (nr != 0 && (lines[nr - 1].endsWith('{') || lines[nr - 1].endsWith(':'))) {
-						protBlock = true;
-						
-						string[] tempWords = lines[nr - 1].split("" ~ lines[nr - 1][$ - 1]);
-						prot = checkProtection(tempWords, tempWords.length - 1);
-					} else
-						prot = checkProtection(words, wnr);
-					
-					if (line.indexOf(':') != -1) {
-						string[2] splitter = line.split(":");
-						string[] named = splitter[1].split(",");
-						
-						const string impName = splitter[0].split()[wnr + 1].strip();
-						
-						/// Protection inheritance
-						if (wnr == 0 && !protBlock && lastImports.length != 0 && lastImports[$ - 1].protBlock) {
-							if (nr != 0 && lines[nr - 1].endsWith('}')) {
-								/// do nothing
-							} else {
-								protBlock = true;
-								prot = lastImports[$ - 1].prot;
-							}
-						}
-						
-						namedImports[impName] = Imports(prot, nr, protBlock);
-						lastImports ~= &namedImports[impName];
-						
-						foreach (name; named) {
-							if (name.indexOf(';') != -1)
-								name = name[0 .. $ - 1];
-							
-							namedImports[impName].imports ~= NamedImport(name.strip());
-						}
-					}
-					
-					break;
+					imps[impName] = curImp;
+					lastImports ~= &imps[impName];
+				} else if (!take) {
+					impName ~= lex.token.toChars();
+				}
+				
+				lex.nextToken();
+			}
+		} else if (lex.token.isIdentifier()) {
+			foreach (string impName, ref Imports imp; imps) {
+				foreach (ref NamedImport nImp; imp.imports) {
+					if (nImp.name == lex.token.toChars())
+						nImp.useLines ~= lex.loc.lineNum;
 				}
 			}
 		}
 	}
 	
 	string[] output;
-	comment[] = false;
-	
-	foreach (string key, ref Imports imp; namedImports) {
-		foreach (ref NamedImport nImp; imp.imports) {
-			foreach (uint nr, string line; lines) {
-				line = line.strip();
-				if (line.length == 0)
-					continue;
-				
-				if (!checkForComment(line, comment))
-					continue;
-				
-				if (comment[0] || comment[1])
-					continue;
-				
-				if (nr == imp.line)
-					continue;
-				
-				/// search
-				for (uint i = 0; i < line.length; ++i) {
-					/// ignore strings
-					if (line[i] == '"') {
-						i++;
-						while (i < line.length && line[i] != '"')
-							i++;
-						
-						if (i >= line.length)
-							break;
-					}
-					
-					char[] word;
-					while (isAlpha(line[i]) || line[i] == '_') {
-						word ~= line[i];
-						
-						i++;
-						if (i >= line.length)
-							break;
-					}
-					
-					if (word.length != 0 && word == nImp.name)
-						nImp.useLines ~= nr + 1;
-				}
-			}
-			
+	foreach (string impName, ref Imports imp; imps) {
+		foreach (ref const NamedImport nImp; imp.imports) {
 			if (nImp.use < minUse) {
 				if (nImp.use == 0) {
-					output ~= format("Named import %s : %s imported on line %d is never used.", key, nImp.name, imp.line + 1);
+					output ~= format("Named import %s : %s imported on line %d is never used.", impName, nImp.name, imp.line);
 					
 					if (info && (imp.prot == Protection.Public || imp.prot == Protection.Package))
 						output[$ - 1] ~= "\n But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
 				} else
-					output ~= format("Named import %s : %s imported on line %d is used %d times.", key, nImp.name, imp.line + 1, nImp.use);
+					output ~= format("Named import %s : %s imported on line %d is used %d times.", impName, nImp.name, imp.line, nImp.use);
 				
 				if (info && nImp.use != 0)
 					output[$ - 1] ~= text(" On lines: ", nImp.useLines);
