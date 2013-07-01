@@ -28,20 +28,23 @@ Checked with:
 <code>DAT --f test.d --use 2 --info true</code>
 
 <pre>
-Named import std.string : format imported on line 5 is never used.
- But maybe 'format' is used in other modules. [public]
-Named import std.string : strip imported on line 5 is used 1 times. On lines: [9
-]
-Named import std.array : split imported on line 6 is never used.
-Named import std.array : join imported on line 6 is never used.
-Named import std.array : empty imported on line 6 is used 1 times. On lines: [9]
-
-Named import std.file : read imported on line 4 is never used.
+* test.d
+        Named import std.string : format imported on line 6 is used 1 times. On lines: [18]
+        Named import std.string : strip imported on line 6 is used 1 times. On lines: [12]
+        Named import std.algorithm : startsWith imported on line 9 is never used.
+        Named import std.algorithm : endsWith imported on line 9 is never used.
+         - Therefore it is useless to import std.algorithm
+        Named import std.array : split imported on line 8 is never used.
+        Named import std.array : join imported on line 8 is never used.
+        Named import std.array : empty imported on line 8 is used 1 times. On lines: [12]
+        Named import std.file : read imported on line 5 is never used.
+         - But maybe 'read' is used in other modules. [public]
 </pre>
 
 And for std/stdio.d checked with:
 <code>DAT --f std/stdio.d --use 2 --info true</code>
 
 <pre>
-Named import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]
+* std/stdio.d
+        Named import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]
 </pre>
