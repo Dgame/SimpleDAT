@@ -15,5 +15,7 @@ bool isEmpty(string test) {
 private void _foo() { }
 
 string fmt() {
+	string str = "one\nnew line";
+	
 	return format("%d.%d.%d", 0, 9, 9);
 }

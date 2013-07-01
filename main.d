@@ -48,8 +48,8 @@ public:
 
 void main(string[] args) {
 	version(none) {
-		version(all)
-			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d";
+		version(none)
+			const string filename = "D:/D/dmd2/src/phobos/std/csv.d";//"D:/D/dmd2/src/phobos/std/stdio.d";
 		else
 			const string filename = "../../test.d";
 		

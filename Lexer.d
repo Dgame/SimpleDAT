@@ -100,6 +100,7 @@ enum Tok {
 	StringLiteral, /// $(D_STRING an 8-bit string)
 	WStringLiteral, /// $(D_STRING 16-bit character stringw)";
 	RegexStringLiteral, /// all string literals which starts with 'r'
+	MultiLineString, /// Starts with `
 	HexLiteral, /// 0xFFFFFF
 	BinaryLiteral, /// 0b010011
 }
@@ -725,8 +726,8 @@ struct Lexer {
 							t.type = Tok.BinaryLiteral;
 							
 							return;
-						} else if (std.ascii.isDigit(*_p))
-							error("Expected 'x' or 'b' after '0', not a number. [%d]", loc, *_p);
+						}/* else if (std.ascii.isDigit(*_p))
+						  warning("Expected 'x' or 'b' after '0', not a number. [%c]", loc, *_p);*/
 					}
 					
 					while (std.ascii.isDigit(*_p)) {
@@ -804,8 +805,41 @@ struct Lexer {
 					else
 						t.type = Tok.Identifier;
 					
-					// debug writeln(" -> ", t.toChars());
+					debug writeln(" -> ", t.toChars());
 					return;
+					
+				case '`':
+					_p++;
+					t.ptr = _p;
+					t.len = 0;
+					t.type = Tok.MultiLineString;
+					
+					while (*_p != '`') {
+						_p++; t.len++;
+						
+						switch (*_p) {
+							case '\n':
+								this.loc.lineNum++;
+								break;
+							case '\r':
+								_p++;
+								if (*_p == '\n')
+									this.loc.lineNum++;
+								break;
+							default: break;
+						}
+						
+						if (t.len > ubyte.max)
+							error("To long multi string", loc);
+					}
+					
+					if (*_p != '`')
+						error("Unterminated multi string.", loc);
+					_p++;
+					
+					debug writeln(" => [multi] => ", t.toChars(), ':', t.type, ":", loc);
+					
+					break;
 					
 				case '"':
 					char c = *(_p - 1);
@@ -833,6 +867,7 @@ struct Lexer {
 						
 						switch (*_p) {
 							case '\n':
+								_p++;
 								this.loc.lineNum++;
 								break;
 							case '\r':
@@ -842,6 +877,9 @@ struct Lexer {
 								break;
 							default: break;
 						}
+						
+						if (t.len > ubyte.max)
+							error("To long string", loc);
 					}
 					
 					if (*_p != '"')
@@ -866,26 +904,29 @@ struct Lexer {
 						default:
 							t.type = t.type == Tok.None ? Tok.StringLiteral : t.type;
 					}
-					// debug writeln(" => ", t.toChars(), ':', t.type);
+					debug writeln(" => ", t.toChars(), ':', t.type, ":", t.len);
 					return;
 					
-				case '\'':
+				case 39:
 					_p++;
 					
 					t.type = Tok.CharacterLiteral;
 					t.ptr = _p;
 					t.len = 0;
 					
-					while (*_p != '\'') {
+					while (*_p != 39) {
 						_p++;
 						t.len++;
+						
+						if (t.len > ubyte.max)
+							error("To long char.", loc);
 					}
 					
 					// debug writefln(" => Line: %d -> [%c] <= ", loc.lineNum, *_p);
 					if (*_p != '\'')
 						error("Unterminated char literal.", loc);
 					_p++;
-					// debug writeln(" --> ", t.toChars());
+					debug writeln(" --> ", t.toChars());
 					return;
 					
 				default:
