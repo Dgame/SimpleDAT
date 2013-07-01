@@ -51,7 +51,7 @@ void main(string[] args) {
 		version(none)
 			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d";
 		else
-			const string filename = "../../main.d";
+			const string filename = "../../test.d";
 		
 		warnForUnusedImports(filename, 2, true);
 	} else 
@@ -196,8 +196,12 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 				if (nImp.use == 0) {
 					output ~= format("Named import %s : %s imported on line %d is never used.", impName, nImp.name, imp.line);
 					
-					if (info && (imp.prot == Protection.Public || imp.prot == Protection.Package))
-						output[$ - 1] ~= "\n But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
+					if (info) {
+						if (imp.prot == Protection.Public || imp.prot == Protection.Package)
+							output[$ - 1] ~= "\n - But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
+						else
+							output[$ - 1] ~= "\n - Therefore it is useless to import " ~ impName;
+					}
 				} else
 					output ~= format("Named import %s : %s imported on line %d is used %d times.", impName, nImp.name, imp.line, nImp.use);
 				
