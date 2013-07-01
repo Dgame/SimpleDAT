@@ -71,7 +71,9 @@ void main(string[] args) {
 			string content;
 			foreach (string filename; filenames) {
 				if (filename.endsWith(".d")) {
+					writeln("* ", filename);
 					warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
+					writeln();
 				}
 			}
 		} else if (path.length != 0) {
@@ -85,7 +87,9 @@ void main(string[] args) {
 			string content;
 			foreach (string filename; filenames) {
 				if (filename.endsWith(".d")) {
+					writeln("* ", filename);
 					warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
+					writeln();
 				}
 			}
 		}
@@ -112,8 +116,16 @@ void main(string[] args) {
 }
 
 void warnForUnusedImports(string filename, uint minUse = 1, bool info = false) {
-	foreach (string msg; findUnusedImports(filename, minUse, info)) {
+	const string[] warns = findUnusedImports(filename, minUse, info);
+	foreach (string msg; warns) {
 		writeln(msg);
+	}
+	
+	if (warns.length == 0) {
+		if (minUse == 1)
+			writeln("\t", "No unused imports.");
+		else
+			writeln("\t", "No underused imports.");
 	}
 }
 
@@ -197,16 +209,16 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 		foreach (ref const NamedImport nImp; imp.imports) {
 			if (nImp.use < minUse) {
 				if (nImp.use == 0) {
-					output ~= format("Named import %s : %s imported on line %d is never used.", impName, nImp.name, imp.line);
+					output ~= format("\tNamed import %s : %s imported on line %d is never used.", impName, nImp.name, imp.line);
 					
 					if (info) {
 						if (imp.prot == Protection.Public || imp.prot == Protection.Package)
-							output[$ - 1] ~= "\n - But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
+							output[$ - 1] ~= "\n\t - But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
 						else
 							useLess++;
 					}
 				} else
-					output ~= format("Named import %s : %s imported on line %d is used %d times.", impName, nImp.name, imp.line, nImp.use);
+					output ~= format("\tNamed import %s : %s imported on line %d is used %d times.", impName, nImp.name, imp.line, nImp.use);
 				
 				if (info && nImp.use != 0)
 					output[$ - 1] ~= text(" On lines: ", nImp.useLines);
@@ -214,7 +226,7 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 		}
 		
 		if (useLess == imp.imports.length)
-			output[$ - 1] ~= "\n - Therefore it is useless to import " ~ impName;
+			output[$ - 1] ~= "\n\t - Therefore it is useless to import " ~ impName;
 	}
 	
 	return output;

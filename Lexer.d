@@ -104,8 +104,7 @@ enum Tok {
 	BinaryLiteral, /// 0b010011
 }
 
-private static immutable string[66] tokenValues = [
-                                                   "Invalid Tok",
+private static immutable string[66] tokenValues = ["Invalid Tok",
                                                    "=",
                                                    "@",
                                                    "&",
@@ -170,11 +169,9 @@ private static immutable string[66] tokenValues = [
                                                    "^",
                                                    "^=",
                                                    "\\",
-                                                   "Eof"
-                                                   ];
+                                                   "Eof"];
 
-private static immutable string[94] Keywords = [
-                                                "abstract", "alias", "align", "asm", "assert", "auto",
+private static immutable string[94] Keywords = ["abstract", "alias", "align", "asm", "assert", "auto",
                                                 "body", "break",
                                                 "case", "cast", "catch", "cdouble", "class", "const", "continue",
                                                 "debug", "default", "delegate", "delete", "deprecated", "do",
@@ -194,11 +191,9 @@ private static immutable string[94] Keywords = [
                                                 "while", "with",
                                                 "__FILE__", "__MODULE__", "__LINE__", "__FUNCTION__", "__PRETTY_FUNCTION__",
                                                 "__gshared", "__traits", "__vector", "__parameters", "__DATE__", "__EOF__",
-                                                "__TIME__", "__TIMESTAMP__", "__VENDOR__", "__VERSION__"
-                                                ];
+                                                "__TIME__", "__TIMESTAMP__", "__VENDOR__", "__VERSION__"];
 
-private static immutable string[29] Types = [
-                                             "void",
+private static immutable string[29] Types = ["void",
                                              "bool",
                                              "byte", "ubyte",
                                              "short", "ushort",
@@ -213,8 +208,7 @@ private static immutable string[29] Types = [
                                              "creal",
                                              "char", "wchar", "dchar",
                                              "string", "wstring", "dstring",
-                                             "size_t", "ptrdiff_t"
-                                             ];
+                                             "size_t", "ptrdiff_t"];
 
 private bool contains(const uint N)(ref immutable string[N] array, const char[] value) {
 	foreach (ref const string item; array) {
@@ -700,7 +694,11 @@ struct Lexer {
 									case 'A': .. case 'F':
 										_p++;
 										break;
-									default: loop = false;
+									default:
+										if (std.ascii.isDigit(*_p))
+											_p++;
+										else
+											loop = false;
 								}
 								
 								t.len++;
@@ -727,8 +725,8 @@ struct Lexer {
 							t.type = Tok.BinaryLiteral;
 							
 							return;
-						} else if (std.ascii.isDigit(*(_p + 1)))
-							error("Expected 'x' or 'b' after '0', not a number.", loc);
+						} else if (std.ascii.isDigit(*_p))
+							error("Expected 'x' or 'b' after '0', not a number. [%d]", loc, *_p);
 					}
 					
 					while (std.ascii.isDigit(*_p)) {
