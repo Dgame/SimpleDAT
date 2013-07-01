@@ -48,7 +48,7 @@ public:
 
 void main(string[] args) {
 	version(none) {
-		version(none)
+		version(all)
 			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d";
 		else
 			const string filename = "../../test.d";
@@ -100,19 +100,19 @@ void main(string[] args) {
 	string[] output = findUnusedImports("D:/D/dmd2/src/phobos/std/stdio.d", 2, true);
 	
 	assert(output.length == 1);
-	assert(output[0] == "Named import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]", "Output is: " ~ output[0]);
+	assert(output[0] == "\tNamed import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]", "Output is: " ~ output[0]);
 	
 	output = findUnusedImports("../../test.d", 2, false);
 	
 	assert(output.length == 8);
-	assert(output[0] == "Named import std.string : format imported on line 6 is never used.", "Output is: " ~ output[0]);
-	assert(output[1] == "Named import std.string : strip imported on line 6 is used 1 times.", "Output is: " ~ output[1]);
-	assert(output[2] == "Named import std.algorithm : startsWith imported on line 9 is never used.", "Output is: " ~ output[2]);
-	assert(output[3] == "Named import std.algorithm : endsWith imported on line 9 is never used.", "Output is: " ~ output[3]);
-	assert(output[4] == "Named import std.array : split imported on line 8 is never used.", "Output is: " ~ output[4]);
-	assert(output[5] == "Named import std.array : join imported on line 8 is never used.", "Output is: " ~ output[5]);
-	assert(output[6] == "Named import std.array : empty imported on line 8 is used 1 times.", "Output is: " ~ output[6]);
-	assert(output[7] == "Named import std.file : read imported on line 5 is never used.", "Output is: " ~ output[7]);
+	assert(output[0] == "\tNamed import std.string : format imported on line 6 is used 1 times.", "Output is: " ~ output[0]);
+	assert(output[1] == "\tNamed import std.string : strip imported on line 6 is used 1 times.", "Output is: " ~ output[1]);
+	assert(output[2] == "\tNamed import std.algorithm : startsWith imported on line 9 is never used.", "Output is: " ~ output[2]);
+	assert(output[3] == "\tNamed import std.algorithm : endsWith imported on line 9 is never used.", "Output is: " ~ output[3]);
+	assert(output[4] == "\tNamed import std.array : split imported on line 8 is never used.", "Output is: " ~ output[4]);
+	assert(output[5] == "\tNamed import std.array : join imported on line 8 is never used.", "Output is: " ~ output[5]);
+	assert(output[6] == "\tNamed import std.array : empty imported on line 8 is used 1 times.", "Output is: " ~ output[6]);
+	assert(output[7] == "\tNamed import std.file : read imported on line 5 is never used.", "Output is: " ~ output[7]);
 }
 
 void warnForUnusedImports(string filename, uint minUse = 1, bool info = false) {

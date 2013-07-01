@@ -9,8 +9,11 @@ import std.array : split, join, empty;
 import std.algorithm : startsWith, endsWith;
 
 bool isEmpty(string test) {
-	const uint N = 0x000000ff;
 	return test.strip().empty();
 }
 
 private void _foo() { }
+
+string fmt() {
+	return format("%d.%d.%d", 0, 9, 9);
+}
