@@ -100,13 +100,15 @@ void main(string[] args) {
 	
 	output = findUnusedImports("../../test.d", 2, false);
 	
-	assert(output.length == 6);
+	assert(output.length == 8);
 	assert(output[0] == "Named import std.string : format imported on line 6 is never used.", "Output is: " ~ output[0]);
 	assert(output[1] == "Named import std.string : strip imported on line 6 is used 1 times.", "Output is: " ~ output[1]);
-	assert(output[2] == "Named import std.array : split imported on line 8 is never used.", "Output is: " ~ output[2]);
-	assert(output[3] == "Named import std.array : join imported on line 8 is never used.", "Output is: " ~ output[3]);
-	assert(output[4] == "Named import std.array : empty imported on line 8 is used 1 times.", "Output is: " ~ output[4]);
-	assert(output[5] == "Named import std.file : read imported on line 5 is never used.", "Output is: " ~ output[5]);
+	assert(output[2] == "Named import std.algorithm : startsWith imported on line 9 is never used.", "Output is: " ~ output[2]);
+	assert(output[3] == "Named import std.algorithm : endsWith imported on line 9 is never used.", "Output is: " ~ output[3]);
+	assert(output[4] == "Named import std.array : split imported on line 8 is never used.", "Output is: " ~ output[4]);
+	assert(output[5] == "Named import std.array : join imported on line 8 is never used.", "Output is: " ~ output[5]);
+	assert(output[6] == "Named import std.array : empty imported on line 8 is used 1 times.", "Output is: " ~ output[6]);
+	assert(output[7] == "Named import std.file : read imported on line 5 is never used.", "Output is: " ~ output[7]);
 }
 
 void warnForUnusedImports(string filename, uint minUse = 1, bool info = false) {
@@ -191,6 +193,7 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 	
 	string[] output;
 	foreach (string impName, ref Imports imp; imps) {
+		ubyte useLess;
 		foreach (ref const NamedImport nImp; imp.imports) {
 			if (nImp.use < minUse) {
 				if (nImp.use == 0) {
@@ -200,7 +203,7 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 						if (imp.prot == Protection.Public || imp.prot == Protection.Package)
 							output[$ - 1] ~= "\n - But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
 						else
-							output[$ - 1] ~= "\n - Therefore it is useless to import " ~ impName;
+							useLess++;
 					}
 				} else
 					output ~= format("Named import %s : %s imported on line %d is used %d times.", impName, nImp.name, imp.line, nImp.use);
@@ -209,6 +212,9 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 					output[$ - 1] ~= text(" On lines: ", nImp.useLines);
 			}
 		}
+		
+		if (useLess == imp.imports.length)
+			output[$ - 1] ~= "\n - Therefore it is useless to import " ~ impName;
 	}
 	
 	return output;
