@@ -1,11 +1,12 @@
 ﻿Check your (named) imports for unused or underused ones.
 <hr />
-Use:
+Usage:
 <pre>
-	--f		scan multiple or one file(s)
-	--d		scan a whole path
-	--use	for the minimal use (default is 1)
-	--info	for used lines
+--f              scan multiple or one file(s)
+--d              scan a whole path
+--use            for the minimal use (default is 1)
+--info           for used lines
+--showAll        Show public / package imports
 </pre>
 <hr />
 test.d:
