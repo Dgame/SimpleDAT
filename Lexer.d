@@ -830,7 +830,7 @@ struct Lexer {
 						}
 						
 						if (t.len > ubyte.max)
-							error("To long multi string", loc);
+							error("To long multi string: %s", loc, t.toChars());
 					}
 					
 					if (*_p != '`')
@@ -841,7 +841,7 @@ struct Lexer {
 					
 					break;
 					
-				case '"':
+				case 0x22:
 					char c = *(_p - 1);
 					_p++;
 					
@@ -862,28 +862,12 @@ struct Lexer {
 					t.ptr = _p;
 					t.len = 0;
 					
-					while (*_p != '"') {
+					while (*_p != 0x22 && *_p != '\r' && *_p != '\n') {
 						_p++; t.len++;
-						
-						switch (*_p) {
-							case '\n':
-								_p++;
-								this.loc.lineNum++;
-								break;
-							case '\r':
-								_p++;
-								if (*_p == '\n')
-									this.loc.lineNum++;
-								break;
-							default: break;
-						}
-						
-						if (t.len > ubyte.max)
-							error("To long string", loc);
 					}
 					
-					if (*_p != '"')
-						error("Unterminated string.", loc);
+					if (*_p != 0x22)
+						error("Unterminated string: %s", loc, t.toChars());
 					_p++;
 					
 					c = *_p;
@@ -907,26 +891,19 @@ struct Lexer {
 					debug writeln(" => ", t.toChars(), ':', t.type, ":", t.len);
 					return;
 					
-				case 39:
+				case 0x27:
 					_p++;
 					
 					t.type = Tok.CharacterLiteral;
 					t.ptr = _p;
 					t.len = 0;
 					
-					while (*_p != 39) {
-						_p++;
-						t.len++;
-						
-						if (t.len > ubyte.max)
-							error("To long char.", loc);
-					}
-					
-					// debug writefln(" => Line: %d -> [%c] <= ", loc.lineNum, *_p);
-					if (*_p != '\'')
-						error("Unterminated char literal.", loc);
 					_p++;
-					debug writeln(" --> ", t.toChars());
+					if (*_p != 0x27)
+						error("Unterminated char literal: %s", loc, t.toChars());
+					
+					_p++;
+					
 					return;
 					
 				default:
