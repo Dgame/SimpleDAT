@@ -46,6 +46,12 @@ public:
 	}
 }
 
+enum Flags {
+	None = 0,
+	Info = 1,
+	ShowAll = 2
+}
+
 void main(string[] args) {
 	version(none) {
 		version(none)
@@ -59,24 +65,39 @@ void main(string[] args) {
 		string files;
 		string path;
 		uint minUseCount;
-		bool info;
+		bool info, showAll;
 		
-		getopt(args, "f", &files, "d", &path, "use", &minUseCount, "info", &info);
+		getopt(args, "f", &files, "d", &path, "use", &minUseCount, "info", &info, "showAll", &showAll);
+		
+		Flags flags;
+		if (info)
+			flags |= Flags.Info;
+		if (showAll)
+			flags |= Flags.ShowAll;
 		
 		if (files.length != 0 && path.length != 0)
 			assert(0, "Sorry, cannot work with --f and --d at the same time.");
 		
 		if (files.length != 0) {
 			string[] filenames = files.split(",");
-			writeln(files, " => ", filenames);
+			//			writeln(files, " => ", filenames);
+			uint total = 0, ocFiles = 0;
+			
 			string content;
 			foreach (string filename; filenames) {
 				if (filename.endsWith(".d")) {
 					writeln("* ", filename);
-					warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
+					uint ocs = warnForUnusedImports(filename, flags, minUseCount > 0 ? minUseCount : 1);
 					writeln();
+					
+					if (ocs) {
+						total += ocs;
+						ocFiles++;
+					}
 				}
 			}
+			
+			writeln("----\n", total, " occurrences in ", ocFiles, " / ", filenames.length, " files.");
 		} else if (path.length != 0) {
 			string[] filenames;
 			foreach (string name; dirEntries(path, SpanMode.depth)) {
@@ -85,15 +106,24 @@ void main(string[] args) {
 				}
 			}
 			
+			uint total = 0, ocFiles = 0;
+			
 			string content;
 			foreach (string filename; filenames) {
 				writeln("* ", filename);
-				warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
+				uint ocs = warnForUnusedImports(filename, flags, minUseCount > 0 ? minUseCount : 1);
 				writeln();
+				
+				if (ocs) {
+					total += ocs;
+					ocFiles++;
+				}
 			}
+			
+			writeln("----\n", total, " occurrences in ", ocFiles, " / ", filenames.length, " files.");
 		}
 	} else {
-		writeln("--f \t scan multiple or one file(s)\n--d \t scan a whole path\n--use \t for the minimal use (default is 1)\n--info \t for used lines\n");
+		writeln("--f \t\t scan multiple or one file(s)\n--d \t\t scan a whole path\n--use \t\t for the minimal use (default is 1)\n--info \t\t for used lines\n--showAll \t Show public / package imports");
 	}
 } unittest {
 	string[] output = findUnusedImports("D:/D/dmd2/src/phobos/std/stdio.d", 2, true);
@@ -114,8 +144,8 @@ void main(string[] args) {
 	assert(output[7] == "\tNamed import std.file : read imported on line 5 is never used.", "Output is: " ~ output[7]);
 }
 
-void warnForUnusedImports(string filename, uint minUse = 1, bool info = false) {
-	const string[] warns = findUnusedImports(filename, minUse, info);
+uint warnForUnusedImports(string filename, Flags flags, uint minUse = 1) {
+	const string[] warns = findUnusedImports(filename, flags, minUse);
 	foreach (string msg; warns) {
 		writeln(msg);
 	}
@@ -126,6 +156,8 @@ void warnForUnusedImports(string filename, uint minUse = 1, bool info = false) {
 		else
 			writeln("\t", "No underused imports.");
 	}
+	
+	return warns.length;
 }
 
 private Protection checkProtection(ref Lexer lex, bool* block) {
@@ -150,12 +182,12 @@ private Protection checkProtection(ref Lexer lex, bool* block) {
 	return Protection.Private;
 }
 
-string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) {
+string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 	Lexer lex = Lexer(filename);
 	
 	Imports[string] imps;
 	Imports*[] lastImports;
-
+	
 	while (lex.token.type != Tok.Eof) {
 		lex.nextToken();
 		
@@ -208,18 +240,21 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 		foreach (ref const NamedImport nImp; imp.imports) {
 			if (nImp.use < minUse) {
 				if (nImp.use == 0) {
-					output ~= format("\tNamed import %s : %s imported on line %d is never used.", impName, nImp.name, imp.line);
-					
-					if (info) {
+					if ((imp.prot != Protection.Public && imp.prot != Protection.Package) || flags & Flags.ShowAll) {
+						output ~= format("\tNamed import %s : %s imported on line %d is never used.",
+						                 impName, nImp.name, imp.line);
+						
+						//if (flags & Flags.Info) {
 						if (imp.prot == Protection.Public || imp.prot == Protection.Package)
 							output[$ - 1] ~= "\n\t - But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
 						else
 							useLess++;
+						//}
 					}
 				} else
 					output ~= format("\tNamed import %s : %s imported on line %d is used %d times.", impName, nImp.name, imp.line, nImp.use);
 				
-				if (info && nImp.use != 0)
+				if (flags & Flags.Info && nImp.use != 0)
 					output[$ - 1] ~= text(" On lines: ", nImp.useLines);
 			}
 		}
