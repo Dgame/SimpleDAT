@@ -229,7 +229,7 @@ struct Lexem {
 public:
 	immutable(char)* ptr;		 // pointer to first character of this token within buffer
 	uint length;
-
+	
 	const(char)[] toChars() const pure nothrow {
 		return this.ptr ? this.ptr[0 .. this.length] : "Invalid";
 	}
@@ -304,7 +304,7 @@ enum PS = 0x2029;	   // UTF paragraph separator
 
 struct Lexer {
 	const uint _maxLines;
-
+	
 	Loc loc; // for error messages
 	immutable(char)* _p; // current character
 	Token token;
@@ -329,12 +329,12 @@ struct Lexer {
 			throw new Exception("Datei " ~ filename ~ " existiert nicht.");
 		
 		this.loc = Loc(filename, 1);
-
+		
 		const string content = cast(string) read(filename);
 		this._maxLines = content.splitLines().length;
-
+		
 		_p = &content[0];
-
+		
 		if (_p[0] == '#' && _p[1] =='!') {
 			_p += 2;
 			
@@ -365,12 +365,13 @@ struct Lexer {
 			this.loc.lineNum = 2;
 		}
 	}
-
+	
 	Token* nextToken() {
 		if (this.token.next)
 			return this.token.next;
 		
 		this.token.next = new Token();
+		this.token.next.type = Tok.None;
 		
 		Token* prev = new Token();
 		std.c.string.memcpy(prev, &this.token, Token.sizeof);
@@ -385,13 +386,14 @@ struct Lexer {
 	
 	void scan(Token* t) {
 		t.type = Tok.None;
-
+		
 		while (true) {
-			if (loc.lineNum > this._maxLines) {
+			if (loc.lineNum >= this._maxLines) {
 				t.type = Tok.Eof;
+				
 				return;
 			}
-
+			
 			if (this.ctype != Comment.None) {
 				switch (*_p) {
 					case '\n':
@@ -425,7 +427,7 @@ struct Lexer {
 				case 0:
 				case 0x1A:
 					t.type = Tok.Eof; // end of file
-
+					
 					return;
 					
 				case ' ':
@@ -476,7 +478,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.At;
 					}
-
+					
 					return;
 					
 				case '=':
@@ -486,7 +488,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.Equals; break;
 						default: t.type = Tok.Assign;
 					}
-
+					
 					return;
 					
 				case '!':
@@ -497,7 +499,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Not;
 					}
-
+					
 					return;
 					
 				case '/':
@@ -524,7 +526,7 @@ struct Lexer {
 					
 					if (this.ctype != Comment.None)
 						continue;
-
+					
 					return;
 					
 				case '+':
@@ -541,7 +543,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.PlusAssign; break;
 						default: t.type = Tok.Plus;
 					}
-
+					
 					return;
 					
 				case '-':
@@ -551,7 +553,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.MinusAssign; break;
 						default: t.type = Tok.Minus;
 					}
-
+					
 					return;
 					
 				case '*':
@@ -569,7 +571,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Star;
 					}
-
+					
 					return;
 					
 				case '&':
@@ -579,7 +581,7 @@ struct Lexer {
 						case '&': _p++; t.type = Tok.LogicAnd; break;
 						default: t.type = Tok.BitAnd;
 					}
-
+					
 					return;
 					
 				case '|':
@@ -599,7 +601,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Mod;
 					}
-
+					
 					return;
 					
 				case '^':
@@ -617,7 +619,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.XorAssign; break;
 						default: t.type = Tok.Xor;
 					}
-
+					
 					return;
 					
 				case '<':
@@ -636,7 +638,7 @@ struct Lexer {
 						case '>': _p++; t.type = Tok.LessOrGreater; break;
 						default: t.type = Tok.Less;
 					}
-
+					
 					return;
 					
 				case '>':
@@ -662,7 +664,7 @@ struct Lexer {
 							break;
 						default: t.type = Tok.Greater;
 					}
-
+					
 					return;
 					
 				case '~':
@@ -673,7 +675,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Tilde;
 					}
-
+					
 					return;
 					
 				case '.':
@@ -689,7 +691,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Dot;
 					}
-
+					
 					return;
 					
 				case '0': .. case '9':
@@ -796,19 +798,19 @@ struct Lexer {
 							
 						default: t.type = Tok.IntLiteral;
 					}
-
+					
 					return;
 					
 				case '_':
 				case 'A': .. case 'Z':
 				case 'a': .. case 'z':
-/*					char c = *_p;
-					if ((c == 'w' || c == 'd' || c == 'c' || c == 'r') && *(_p + 1) == '"') {
-						_p++;
-						
-						goto case '"';
-					}
-					*/
+					/*					char c = *_p;
+					 if ((c == 'w' || c == 'd' || c == 'c' || c == 'r') && *(_p + 1) == '"') {
+					 _p++;
+					 
+					 goto case '"';
+					 }
+					 */
 					t.lexem = Lexem(_p, 0);
 					
 					while (std.ascii.isAlphaNum(*_p) || *_p == '_') {
@@ -824,63 +826,66 @@ struct Lexer {
 						t.type = Tok.Identifier;
 					
 					//debug writeln("ID: -> ", t.toChars());
-
+					
 					return;
 					
-/*				case '`':
-					_p++;
-					t.ptr = _p;
-					t.len = 0;
-					t.type = Tok.MultiLineString;
-					
-					while (*_p != '`') {
-						_p++; t.len++;
-						
-						switch (*_p) {
-							case '\n':
-								this.loc.lineNum++;
-								break;
-							case '\r':
-								_p++;
-								if (*_p == '\n')
-									this.loc.lineNum++;
-								break;
-							default: break;
-						}
-						
-						if (t.len > ubyte.max)
-							error("To long multi string: %s", loc, t.toChars());
-					}
-					
-					if (*_p != '`')
-						error("Unterminated multi string.", loc);
-					_p++;
-					
-					debug writeln(" => [multi] => ", t.toChars(), ':', t.type, ":", loc);
-					
-					break;*/
+					/*				case '`':
+					 _p++;
+					 t.ptr = _p;
+					 t.len = 0;
+					 t.type = Tok.MultiLineString;
+					 
+					 while (*_p != '`') {
+					 _p++; t.len++;
+					 
+					 switch (*_p) {
+					 case '\n':
+					 this.loc.lineNum++;
+					 break;
+					 case '\r':
+					 _p++;
+					 if (*_p == '\n')
+					 this.loc.lineNum++;
+					 break;
+					 default: break;
+					 }
+					 
+					 if (t.len > ubyte.max)
+					 error("To long multi string: %s", loc, t.toChars());
+					 }
+					 
+					 if (*_p != '`')
+					 error("Unterminated multi string.", loc);
+					 _p++;
+					 
+					 debug writeln(" => [multi] => ", t.toChars(), ':', t.type, ":", loc);
+					 
+					 break;*/
 					
 				case '"':
 					_p++;
-
+					
 					t.type = Tok.StringLiteral;
 					t.lexem = Lexem(_p, 0);
-
+					
 					while (*_p != '"') {
+						if (*_p == 0x5C)
+							_p++;
+						
 						if (*_p == '\n')
 							error("NL in string", loc);
-
+						
 						_p++;
 						t.lexem.length++;
 					}
-
+					
 					debug writeln("String (", loc.lineNum, "): -> ", t.toChars());
-
+					
 					if (*_p != '"')
 						error("Unterminated string: %s -> %c", loc, t.toChars(), *_p);
-
+					
 					_p++;
-				
+					
 					return;
 					
 				case 0x27:
@@ -888,22 +893,25 @@ struct Lexer {
 					
 					t.type = Tok.CharacterLiteral;
 					t.lexem = Lexem(_p, 0);
-
+					
 					if (*_p != 0x27) {
+						if (*_p == 0x5C)
+							_p++;
+						
 						_p++;
 						t.lexem.length++;
 					}
-
+					
 					if (*_p != 0x27)
 						error("Unterminated char: %s -> %c", loc, t.toChars(), *_p);
-
+					
 					_p++;
 					
 					return;
 					
 				default:
 					_p++;
-
+					
 					return;
 			}
 		}
