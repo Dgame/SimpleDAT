@@ -67,7 +67,8 @@ void main(string[] args) {
 			assert(0, "Sorry, cannot work with --f and --d at the same time.");
 		
 		if (files.length != 0) {
-			string[] filenames = files.split();
+			string[] filenames = files.split(",");
+			writeln(files, " => ", filenames);
 			string content;
 			foreach (string filename; filenames) {
 				if (filename.endsWith(".d")) {
@@ -86,11 +87,9 @@ void main(string[] args) {
 			
 			string content;
 			foreach (string filename; filenames) {
-				if (filename.endsWith(".d")) {
-					writeln("* ", filename);
-					warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
-					writeln();
-				}
+				writeln("* ", filename);
+				warnForUnusedImports(filename, minUseCount > 0 ? minUseCount : 1, info);
+				writeln();
 			}
 		}
 	} else {
@@ -156,7 +155,7 @@ string[] findUnusedImports(string filename, uint minUse = 1, bool info = false) 
 	
 	Imports[string] imps;
 	Imports*[] lastImports;
-	
+
 	while (lex.token.type != Tok.Eof) {
 		lex.nextToken();
 		

@@ -1,8 +1,9 @@
 module DAT.Lexer;
 
 import std.stdio;
+import std.string : splitLines;
 import std.file : exists, read;
-import std.c.string : memcpy;
+//import std.c.string : memcpy;
 
 enum Tok {
 	None,
@@ -209,7 +210,7 @@ private static immutable string[29] Types = ["void",
                                              "creal",
                                              "char", "wchar", "dchar",
                                              "string", "wstring", "dstring",
-                                             "size_t", "ptrdiff_t"];
+                                             "uint", "ptrdiff_t"];
 
 private bool contains(const uint N)(ref immutable string[N] array, const char[] value) {
 	foreach (ref const string item; array) {
@@ -224,18 +225,27 @@ private string getTokenValue(Tok tok) pure nothrow {
 	return tok < tokenValues.length ? tokenValues[tok] : "Undefinied Tok";
 }
 
+struct Lexem {
+public:
+	immutable(char)* ptr;		 // pointer to first character of this token within buffer
+	uint length;
+
+	const(char)[] toChars() const pure nothrow {
+		return this.ptr ? this.ptr[0 .. this.length] : "Invalid";
+	}
+}
+
 struct Token {
 public:
 	Token* next;
 	Token* prev;
 	
-	char* ptr;		 // pointer to first character of this token within buffer
-	uint len;
+	Lexem lexem;
 	
 	Tok type;
 	
 	const(char)[] toChars() const pure nothrow {
-		return this.ptr ? this.ptr[0 .. this.len] : getTokenValue(this.type);
+		return this.lexem.length ? this.lexem.toChars() : getTokenValue(this.type);
 	}
 	
 	bool isIdentifier() const pure nothrow {
@@ -265,9 +275,9 @@ public:
 
 struct Loc {
 	const string filename;
-	size_t lineNum;
+	uint lineNum;
 	
-	this(string filename, size_t line) {
+	this(string filename, uint line) {
 		this.lineNum  = line;
 		this.filename = filename;
 	}
@@ -293,8 +303,10 @@ enum LS = 0x2028;	   // UTF line separator
 enum PS = 0x2029;	   // UTF paragraph separator
 
 struct Lexer {
+	const uint _maxLines;
+
 	Loc loc; // for error messages
-	char* _p; // current character
+	immutable(char)* _p; // current character
 	Token token;
 	
 	enum Comment {
@@ -316,11 +328,13 @@ struct Lexer {
 		if (!exists(filename))
 			throw new Exception("Datei " ~ filename ~ " existiert nicht.");
 		
-		this.loc.filename = filename;
-		this.loc.lineNum  = 1;
-		
-		_p = &(cast(char[]) read(filename))[0];
-		
+		this.loc = Loc(filename, 1);
+
+		const string content = cast(string) read(filename);
+		this._maxLines = content.splitLines().length;
+
+		_p = &content[0];
+
 		if (_p[0] == '#' && _p[1] =='!') {
 			_p += 2;
 			
@@ -351,7 +365,7 @@ struct Lexer {
 			this.loc.lineNum = 2;
 		}
 	}
-	
+
 	Token* nextToken() {
 		if (this.token.next)
 			return this.token.next;
@@ -359,7 +373,7 @@ struct Lexer {
 		this.token.next = new Token();
 		
 		Token* prev = new Token();
-		memcpy(prev, &this.token, Token.sizeof);
+		std.c.string.memcpy(prev, &this.token, Token.sizeof);
 		
 		this.scan(this.token.next);
 		
@@ -371,14 +385,18 @@ struct Lexer {
 	
 	void scan(Token* t) {
 		t.type = Tok.None;
-		t.ptr  = null;
-		
+
 		while (true) {
+			if (loc.lineNum > this._maxLines) {
+				t.type = Tok.Eof;
+				return;
+			}
+
 			if (this.ctype != Comment.None) {
 				switch (*_p) {
 					case '\n':
 						_p++;
-						this.loc.lineNum++; // TODO?
+						this.loc.lineNum++;
 						
 						if (this.ctype == Comment.Line)
 							this.ctype = Comment.None;
@@ -407,6 +425,7 @@ struct Lexer {
 				case 0:
 				case 0x1A:
 					t.type = Tok.Eof; // end of file
+
 					return;
 					
 				case ' ':
@@ -431,8 +450,8 @@ struct Lexer {
 				case '#': _p++; t.type = Tok.Hash;		return;
 				case '$': _p++; t.type = Tok.Dollar; 	return;
 					
-				case ',': _p++; t.type = Tok.Comma; 		return;
-				case ':': _p++; t.type = Tok.Colon; 		return;
+				case ',': _p++; t.type = Tok.Comma; 	return;
+				case ':': _p++; t.type = Tok.Colon; 	return;
 				case ';': _p++; t.type = Tok.Semicolon; return;
 					
 				case '(': _p++; t.type = Tok.LParen; 	return;
@@ -444,7 +463,7 @@ struct Lexer {
 				case '\\': _p++; t.type = Tok.Backslash; return;
 					
 				case '@':
-					char* oldp = _p;
+					immutable(char)* oldp = _p;
 					_p++;
 					
 					while (std.ascii.isAlpha(*_p)) {
@@ -453,28 +472,11 @@ struct Lexer {
 					
 					if (_p - oldp) {
 						t.type = Tok.Property;
-						t.ptr  = oldp;
-						t.len  = _p - oldp;
+						t.lexem = Lexem(oldp, _p - oldp);
 					} else {
 						t.type = Tok.At;
 					}
-					/*
-					 switch (oldp[0 .. (_p - oldp)]) {
-					 case "@property":
-					 case "@safe":
-					 case "@trusted":
-					 case "@system":
-					 case "@disable":
-					 t.type = Tok.Property;
-					 t.ptr  = oldp;
-					 t.len  = _p - oldp;
-					 default:
-					 t.type = Tok.At;
-					 // reset
-					 _p = oldp;
-					 _p++;
-					 }
-					 */
+
 					return;
 					
 				case '=':
@@ -484,6 +486,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.Equals; break;
 						default: t.type = Tok.Assign;
 					}
+
 					return;
 					
 				case '!':
@@ -494,6 +497,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Not;
 					}
+
 					return;
 					
 				case '/':
@@ -520,6 +524,7 @@ struct Lexer {
 					
 					if (this.ctype != Comment.None)
 						continue;
+
 					return;
 					
 				case '+':
@@ -536,6 +541,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.PlusAssign; break;
 						default: t.type = Tok.Plus;
 					}
+
 					return;
 					
 				case '-':
@@ -545,6 +551,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.MinusAssign; break;
 						default: t.type = Tok.Minus;
 					}
+
 					return;
 					
 				case '*':
@@ -562,6 +569,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Star;
 					}
+
 					return;
 					
 				case '&':
@@ -571,6 +579,7 @@ struct Lexer {
 						case '&': _p++; t.type = Tok.LogicAnd; break;
 						default: t.type = Tok.BitAnd;
 					}
+
 					return;
 					
 				case '|':
@@ -590,6 +599,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Mod;
 					}
+
 					return;
 					
 				case '^':
@@ -607,6 +617,7 @@ struct Lexer {
 						case '=': _p++; t.type = Tok.XorAssign; break;
 						default: t.type = Tok.Xor;
 					}
+
 					return;
 					
 				case '<':
@@ -625,6 +636,7 @@ struct Lexer {
 						case '>': _p++; t.type = Tok.LessOrGreater; break;
 						default: t.type = Tok.Less;
 					}
+
 					return;
 					
 				case '>':
@@ -650,6 +662,7 @@ struct Lexer {
 							break;
 						default: t.type = Tok.Greater;
 					}
+
 					return;
 					
 				case '~':
@@ -660,6 +673,7 @@ struct Lexer {
 					} else {
 						t.type = Tok.Tilde;
 					}
+
 					return;
 					
 				case '.':
@@ -675,11 +689,11 @@ struct Lexer {
 					} else {
 						t.type = Tok.Dot;
 					}
+
 					return;
 					
 				case '0': .. case '9':
-					t.ptr = _p;
-					t.len = 0;
+					t.lexem = Lexem(_p, 0);
 					
 					if (*_p == '0') {
 						_p++;
@@ -702,7 +716,7 @@ struct Lexer {
 											loop = false;
 								}
 								
-								t.len++;
+								t.lexem.length++;
 							}
 							
 							t.type = Tok.HexLiteral;
@@ -720,7 +734,7 @@ struct Lexer {
 									default: loop = false;
 								}
 								
-								t.len++;
+								t.lexem.length++;
 							}
 							
 							t.type = Tok.BinaryLiteral;
@@ -732,20 +746,23 @@ struct Lexer {
 					
 					while (std.ascii.isDigit(*_p)) {
 						if (*_p == '_' && std.ascii.isDigit(*(_p + 1))) {
-							_p += 2; t.len += 2;
+							_p += 2;
+							t.lexem.length += 2;
 						}
 						
-						_p++; t.len++;
+						_p++;
+						t.lexem.length++;
 					}
 					
 					switch (*_p) {
 						case '.':
 							_p++;
 							while (std.ascii.isDigit(*_p)) {
-								_p++; t.len++;
+								_p++; t.lexem.length++;
 								
 								if (*_p == '_' && std.ascii.isDigit(*(_p + 1))) {
-									_p += 2; t.len += 2;
+									_p += 2;
+									t.lexem.length += 2;
 								}
 							}
 							
@@ -779,23 +796,24 @@ struct Lexer {
 							
 						default: t.type = Tok.IntLiteral;
 					}
+
 					return;
 					
 				case '_':
 				case 'A': .. case 'Z':
 				case 'a': .. case 'z':
-					char c = *_p;
+/*					char c = *_p;
 					if ((c == 'w' || c == 'd' || c == 'c' || c == 'r') && *(_p + 1) == '"') {
 						_p++;
 						
 						goto case '"';
 					}
-					
-					t.ptr = _p;
-					t.len = 0;
+					*/
+					t.lexem = Lexem(_p, 0);
 					
 					while (std.ascii.isAlphaNum(*_p) || *_p == '_') {
-						_p++; t.len++;
+						_p++;
+						t.lexem.length++;
 					}
 					
 					if (Types.contains(t.toChars()))
@@ -805,10 +823,11 @@ struct Lexer {
 					else
 						t.type = Tok.Identifier;
 					
-					debug writeln(" -> ", t.toChars());
+					//debug writeln("ID: -> ", t.toChars());
+
 					return;
 					
-				case '`':
+/*				case '`':
 					_p++;
 					t.ptr = _p;
 					t.len = 0;
@@ -839,75 +858,52 @@ struct Lexer {
 					
 					debug writeln(" => [multi] => ", t.toChars(), ':', t.type, ":", loc);
 					
-					break;
+					break;*/
 					
-				case 0x22:
-					char c = *(_p - 1);
+				case '"':
 					_p++;
-					
-					switch (c) {
-						case 'w':
-							t.type = Tok.WStringLiteral;
-							break;
-						case 'd':
-							t.type = Tok.DStringLiteral;
-							break;
-						case 'r':
-							t.type = Tok.RegexStringLiteral;
-							break;
-						case 'c':
-						default: t.type = Tok.None;
+
+					t.type = Tok.StringLiteral;
+					t.lexem = Lexem(_p, 0);
+
+					while (*_p != '"') {
+						if (*_p == '\n')
+							error("NL in string", loc);
+
+						_p++;
+						t.lexem.length++;
 					}
-					
-					t.ptr = _p;
-					t.len = 0;
-					
-					while (*_p != 0x22 && *_p != '\r' && *_p != '\n') {
-						_p++; t.len++;
-					}
-					
-					if (*_p != 0x22)
-						error("Unterminated string: %s", loc, t.toChars());
+
+					debug writeln("String (", loc.lineNum, "): -> ", t.toChars());
+
+					if (*_p != '"')
+						error("Unterminated string: %s -> %c", loc, t.toChars(), *_p);
+
 					_p++;
-					
-					c = *_p;
-					switch (c) {
-						case 'w':
-							_p++;
-							t.type = Tok.WStringLiteral;
-							break;
-						case 'd':
-							_p++;
-							t.type = Tok.DStringLiteral;
-							break;
-						case 'r':
-							_p++;
-							t.type = Tok.RegexStringLiteral;
-							break;
-						case 'c':
-						default:
-							t.type = t.type == Tok.None ? Tok.StringLiteral : t.type;
-					}
-					debug writeln(" => ", t.toChars(), ':', t.type, ":", t.len);
+				
 					return;
 					
 				case 0x27:
 					_p++;
 					
 					t.type = Tok.CharacterLiteral;
-					t.ptr = _p;
-					t.len = 0;
-					
-					_p++;
+					t.lexem = Lexem(_p, 0);
+
+					if (*_p != 0x27) {
+						_p++;
+						t.lexem.length++;
+					}
+
 					if (*_p != 0x27)
-						error("Unterminated char literal: %s", loc, t.toChars());
-					
+						error("Unterminated char: %s -> %c", loc, t.toChars(), *_p);
+
 					_p++;
 					
 					return;
 					
 				default:
 					_p++;
+
 					return;
 			}
 		}
