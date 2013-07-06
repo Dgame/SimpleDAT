@@ -894,7 +894,7 @@ struct Lexer {
 					t.type = Tok.CharacterLiteral;
 					t.lexem = Lexem(_p, 0);
 					
-					if (*_p != 0x27) {
+					while (*_p != 0x27) {
 						if (*_p == 0x5C)
 							_p++;
 						
