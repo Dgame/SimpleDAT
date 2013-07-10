@@ -1,9 +1,10 @@
 module DAT.Lexer;
 
 import std.stdio;
-import std.string : splitLines;
+import std.string : format, splitLines;
 import std.file : exists, read;
-//import std.c.string : memcpy;
+import std.c.string : memcpy;
+import std.ascii : isAlpha, isAlphaNum, isDigit;
 
 enum Tok {
 	None,
@@ -173,52 +174,168 @@ private static immutable string[66] tokenValues = ["Invalid Tok",
                                                    "\\",
                                                    "Eof"];
 
-private static immutable string[94] Keywords = ["abstract", "alias", "align", "asm", "assert", "auto",
-                                                "body", "break",
-                                                "case", "cast", "catch", "cdouble", "class", "const", "continue",
-                                                "debug", "default", "delegate", "delete", "deprecated", "do",
-                                                "else", "enum", "export", "extern",
-                                                "false", "final", "finally", "for", "foreach", "foreach_reverse", "function",
-                                                "goto",
-                                                "if", "immutable", "import", "in", "inout", "interface", "invariant", "is",
-                                                "lazy",
-                                                "macro", "mixin", "module", "new", "nothrow", "null",
-                                                "out", "override",
-                                                "package", "pragma", "private", "protected", "public", "pure",
-                                                "ref", "return",
-                                                "scope", "shared", "static", "struct", "super", "switch", "synchronized",
-                                                "template", "this", "throw", "true", "try", "typedef", "typeid", "typeof",
-                                                "union", "unittest",
-                                                "version", "volatile",
-                                                "while", "with",
-                                                "__FILE__", "__MODULE__", "__LINE__", "__FUNCTION__", "__PRETTY_FUNCTION__",
-                                                "__gshared", "__traits", "__vector", "__parameters", "__DATE__", "__EOF__",
-                                                "__TIME__", "__TIMESTAMP__", "__VENDOR__", "__VERSION__"];
+const struct Pair {
+public:
+	uint id;
+	string value;
+}
 
-private static immutable string[29] Types = ["void",
-                                             "bool",
-                                             "byte", "ubyte",
-                                             "short", "ushort",
-                                             "int", "uint",
-                                             "long", "ulong",
-                                             "cent", "ucent",
-                                             "float", "double",
-                                             "real",
-                                             "ifloat", "idouble",
-                                             "ireal",
-                                             "cfloat", "cdouble",
-                                             "creal",
-                                             "char", "wchar", "dchar",
-                                             "string", "wstring", "dstring",
-                                             "uint", "ptrdiff_t"];
+enum Keyword {
+	None,
+	abstract_, alias_, align_, asm_, assert_, auto_,
+	body_, break_,
+	case_, cast_, catch_, cdouble_, class_, const_, continue_,
+	debug_, default_, delegate_, delete_, deprecated_, do_,
+	else_, enum_, export_, extern_,
+	false_, final_, finally_, for_, foreach_, foreach_reverse_, function_,
+	goto_,
+	if_, immutable_, import_, in_, inout_, interface_, invariant_, is_,
+	lazy_,
+	macro_, mixin_, module_, new_, nothrow_, null_,
+	out_, override_,
+	package_, pragma_, private_, protected_, public_, pure_,
+	ref_, return_,
+	scope_, shared_, static_, struct_, super_, switch_, synchronized_,
+	template_, this_, throw_, true_, try_, typedef_, typeid_, typeof_,
+	union_, unittest_,
+	version_, volatile_,
+	while_, with_,
+	_file_, _module_, _line_, _function_, _pretty_function_,
+	gshared_, traits_, vector_, parameters_, _date_, _eof_,
+	_time_, _timestamp_, _vendor_, _version_
+}
 
-private bool contains(const uint N)(ref immutable string[N] array, const char[] value) {
-	foreach (ref const string item; array) {
-		if (item == value)
-			return true;
+private static immutable Pair[][26] Keywords = 
+	[[Pair(Keyword.abstract_, "abstract"), Pair(Keyword.alias_, "alias"),
+	  Pair(Keyword.align_, "align"), Pair(Keyword.asm_, "asm"),
+	  Pair(Keyword.assert_, "assert"), Pair(Keyword.auto_, "auto")],
+	 [Pair(Keyword.body_, "body"), Pair(Keyword.break_, "break")],
+	 [Pair(Keyword.case_, "case"), Pair(Keyword.cast_, "cast"),
+	 Pair(Keyword.catch_, "catch"), Pair(Keyword.cdouble_, "cdouble"),
+	 Pair(Keyword.class_, "class"), Pair(Keyword.const_, "const"),
+	 Pair(Keyword.continue_, "continue")],
+	 [Pair(Keyword.debug_, "debug"), Pair(Keyword.default_, "default"),
+	 Pair(Keyword.delegate_, "delegate"), Pair(Keyword.delete_, "delete"),
+	 Pair(Keyword.deprecated_, "deprecated"), Pair(Keyword.do_, "do")],
+	 [Pair(Keyword.else_, "else"), Pair(Keyword.enum_, "enum"),
+	 Pair(Keyword.export_, "export"), Pair(Keyword.extern_, "extern")],
+	 [Pair(Keyword.false_, "false"), Pair(Keyword.final_, "final"),
+	 Pair(Keyword.finally_, "finally"), Pair(Keyword.for_, "for"),
+	 Pair(Keyword.foreach_, "foreach"),
+	 Pair(Keyword.foreach_reverse_, "foreach_reverse"),
+	 Pair(Keyword.function_, "function")],
+	 [Pair(Keyword.goto_, "goto")],
+	 null, /// h
+	 [Pair(Keyword.if_, "if"), Pair(Keyword.immutable_, "immutable"),
+	 Pair(Keyword.import_, "import"), Pair(Keyword.in_, "in"),
+	 Pair(Keyword.inout_, "inout"), Pair(Keyword.interface_, "interface"),
+	 Pair(Keyword.invariant_, "invariant"), Pair(Keyword.is_, "is")],
+	 null, /// j
+	 null, /// k
+	 [Pair(Keyword.lazy_, "lazy")],
+	 [Pair(Keyword.macro_, "macro"), Pair(Keyword.mixin_, "mixin"),
+	 Pair(Keyword.module_, "module")],
+	 [Pair(Keyword.new_, "new"),
+	 Pair(Keyword.nothrow_, "nothrow"), Pair(Keyword.null_, "null")],
+	 [Pair(Keyword.out_, "out"), Pair(Keyword.override_, "override")],
+	 [Pair(Keyword.package_, "package"), Pair(Keyword.pragma_, "pragma"),
+	 Pair(Keyword.private_, "private"), Pair(Keyword.protected_, "protected"),
+	 Pair(Keyword.public_, "public"), Pair(Keyword.pure_, "pure")],
+	 null, /// q
+	 [Pair(Keyword.ref_, "ref"), Pair(Keyword.return_, "return")],
+	 [Pair(Keyword.scope_, "scope"), Pair(Keyword.shared_, "shared"),
+	 Pair(Keyword.static_, "static"), Pair(Keyword.struct_, "struct"),
+	 Pair(Keyword.super_, "super"), Pair(Keyword.switch_, "switch"),
+	 Pair(Keyword.synchronized_, "synchronized")],
+	 [Pair(Keyword.template_, "template"), Pair(Keyword.this_, "this"),
+	 Pair(Keyword.throw_, "throw"), Pair(Keyword.true_, "true"),
+	 Pair(Keyword.try_, "try"), Pair(Keyword.typedef_, "typedef"),
+	 Pair(Keyword.typeid_, "typeid"), Pair(Keyword.typeof_, "typeof")],
+	 [Pair(Keyword.union_, "union"), Pair(Keyword.unittest_, "unittest")],
+	 [Pair(Keyword.version_, "version"), Pair(Keyword.volatile_, "volatile")],
+	 [Pair(Keyword.while_, "while"), Pair(Keyword.with_, "with")],
+	 null, /// x
+	 null, /// y
+	 [Pair(Keyword._file_, "__FILE__"), Pair(Keyword._module_, "__MODULE__"),
+	 Pair(Keyword._line_, "__LINE__"), Pair(Keyword._function_, "__FUNCTION__"),
+	 Pair(Keyword._pretty_function_, "__PRETTY_FUNCTION__"),
+	 Pair(Keyword.gshared_, "__gshared"), Pair(Keyword.traits_, "__traits"),
+	 Pair(Keyword.vector_, "__vector"), Pair(Keyword.parameters_, "__parameters"),
+	 Pair(Keyword._date_, "__DATE__"), Pair(Keyword._eof_, "__EOF__"),
+	 Pair(Keyword._time_, "__TIME__"), Pair(Keyword._timestamp_, "__TIMESTAMP__"),
+	 Pair(Keyword._vendor_, "__VENDOR__"), Pair(Keyword._version_, "__VERSION__")]];
+
+enum Type {
+	None,
+	void_,
+	bool_,
+	byte_, ubyte_,
+	short_, ushort_,
+	int_, uint_,
+	long_, ulong_,
+	cent_, ucent_,
+	float_, double_,
+	real_,
+	ifloat_, idouble_,
+	ireal_,
+	cfloat_, cdouble_,
+	creal_,
+	char_, wchar_, dchar_,
+	string_, wstring_, dstring_,
+	ptrdiff_t_
+}
+
+private static immutable Pair[][26] Types = 
+	[null, /// a
+	 [Pair(Type.bool_, "bool"), Pair(Type.byte_, "byte")],
+	 [Pair(Type.cent_, "cent"), Pair(Type.cfloat_, "cfloat"),
+	 Pair(Type.cdouble_, "cdouble"), Pair(Type.creal_, "creal"),
+	 Pair(Type.char_, "char")],
+	 [Pair(Type.double_, "double"), Pair(Type.dchar_, "dchar"),
+	 Pair(Type.dstring_, "dstring")],
+	 null, /// e
+	 [Pair(Type.float_, "float")],
+	 null, /// g
+	 null, /// h
+	 [Pair(Type.ifloat_, "ifloat"), Pair(Type.idouble_, "idouble"),
+	 Pair(Type.int_, "int"), Pair(Type.ireal_, "ireal")],
+	 null, /// j
+	 null, /// k
+	 [Pair(Type.long_, "long")],
+	 null, /// m
+	 null, /// n
+	 null, /// o
+	 [Pair(Type.ptrdiff_t_, "ptrdiff_t")],
+	 null, /// q
+	 [Pair(Type.real_, "real")],
+	 [Pair(Type.short_, "short"), Pair(Type.string_, "string")],
+	 null, /// t
+	 [Pair(Type.ubyte_, "ubyte"), Pair(Type.ushort_, "ushort"),
+	 Pair(Type.uint_, "uint"), Pair(Type.ulong_, "ulong"),
+	 Pair(Type.ucent_, "ucent")],
+	 null, /// q
+	 [Pair(Type.wchar_, "wchar"), Pair(Type.wstring_, "wstring")],
+	 null, /// x
+	 null, /// y
+	 null /// z
+	 ];
+
+private const(Pair)* contains(ref immutable Pair[][26] array, const char[] value) {
+	int c = -1;
+	if (value[0] != '_')
+		c = value[0] - 'a';
+	else
+		c = 25;
+	
+	if (c < 0 || c > 26)
+		return null;
+	
+	foreach (ref const Pair pair; array[c]) {
+		if (pair.value == value)
+			return &pair;
 	}
 	
-	return false;
+	return null;
 }
 
 private string getTokenValue(Tok tok) pure nothrow {
@@ -238,13 +355,19 @@ public:
 struct Token {
 public:
 	Token* next;
-	Token* prev;
+	Token* previous;
 	
-	Lexem lexem;
+	union {
+		Lexem lexem;
+		const(Pair)* pair;
+	}
 	
 	Tok type;
 	
 	const(char)[] toChars() const pure nothrow {
+		if (this.isKeyword() || this.isType())
+			return this.pair.value;
+		
 		return this.lexem.length ? this.lexem.toChars() : getTokenValue(this.type);
 	}
 	
@@ -291,9 +414,9 @@ struct Loc {
 	}
 }
 
-void error(Args...)(string msg, ref const Loc loc, Args args) {
+void error(Args...)(ref const Loc loc, string msg, Args args) {
 	static if (args.length != 0) {
-		msg = std.string.format(msg, args);
+		msg = format(msg, args);
 	}
 	
 	throw new Exception(msg, loc.filename, loc.lineNum);
@@ -367,21 +490,36 @@ struct Lexer {
 	}
 	
 	Token* nextToken() {
-		if (this.token.next)
-			return this.token.next;
+		if (this.token.next) {
+			memcpy(&this.token, this.token.next, Token.sizeof);
+			
+			goto L1;
+		}
 		
 		this.token.next = new Token();
 		this.token.next.type = Tok.None;
 		
 		Token* prev = new Token();
-		std.c.string.memcpy(prev, &this.token, Token.sizeof);
+		memcpy(prev, &this.token, Token.sizeof);
 		
 		this.scan(this.token.next);
 		
 		this.token = *this.token.next;
-		this.token.prev = prev;
+		this.token.previous = prev;
 		
+	L1:
 		return &this.token;
+	}
+	
+	Token* peekAhead() {
+		if (this.token.next)
+			goto L1;
+		
+		this.token.next = new Token();
+		this.scan(this.token.next);
+		
+	L1:
+		return this.token.next;
 	}
 	
 	void scan(Token* t) {
@@ -394,6 +532,7 @@ struct Lexer {
 				return;
 			}
 			
+			/// Look for the end of the comment
 			if (this.ctype != Comment.None) {
 				switch (*_p) {
 					case '\n':
@@ -468,7 +607,7 @@ struct Lexer {
 					immutable(char)* oldp = _p;
 					_p++;
 					
-					while (std.ascii.isAlpha(*_p)) {
+					while (isAlpha(*_p)) {
 						_p++;
 					}
 					
@@ -504,6 +643,7 @@ struct Lexer {
 					
 				case '/':
 					_p++;
+					/// Look for comments
 					switch (*_p) {
 						case '/':
 							_p++;
@@ -531,12 +671,6 @@ struct Lexer {
 					
 				case '+':
 					_p++;			
-					if (this.ctype == Comment.Plus && *_p == '/') {
-						_p++;
-						this.ctype = Comment.None;
-						// return;
-						continue;
-					}
 					
 					switch (*_p) {
 						case '+': _p++; t.type = Tok.Increment; break;
@@ -558,12 +692,6 @@ struct Lexer {
 					
 				case '*':
 					_p++;
-					if (this.ctype == Comment.Star && *_p == '/') {
-						_p++;
-						this.ctype = Comment.None;
-						// return;
-						continue;
-					}
 					
 					if (*_p == '=') {
 						_p++;
@@ -712,7 +840,7 @@ struct Lexer {
 										_p++;
 										break;
 									default:
-										if (std.ascii.isDigit(*_p))
+										if (isDigit(*_p))
 											_p++;
 										else
 											loop = false;
@@ -742,12 +870,11 @@ struct Lexer {
 							t.type = Tok.BinaryLiteral;
 							
 							return;
-						}/* else if (std.ascii.isDigit(*_p))
-						  warning("Expected 'x' or 'b' after '0', not a number. [%c]", loc, *_p);*/
+						}
 					}
 					
-					while (std.ascii.isDigit(*_p)) {
-						if (*_p == '_' && std.ascii.isDigit(*(_p + 1))) {
+					while (isDigit(*_p)) {
+						if (*_p == '_' && isDigit(*(_p + 1))) {
 							_p += 2;
 							t.lexem.length += 2;
 						}
@@ -759,10 +886,10 @@ struct Lexer {
 					switch (*_p) {
 						case '.':
 							_p++;
-							while (std.ascii.isDigit(*_p)) {
+							while (isDigit(*_p)) {
 								_p++; t.lexem.length++;
 								
-								if (*_p == '_' && std.ascii.isDigit(*(_p + 1))) {
+								if (*_p == '_' && isDigit(*(_p + 1))) {
 									_p += 2;
 									t.lexem.length += 2;
 								}
@@ -804,63 +931,27 @@ struct Lexer {
 				case '_':
 				case 'A': .. case 'Z':
 				case 'a': .. case 'z':
-					/*					char c = *_p;
-					 if ((c == 'w' || c == 'd' || c == 'c' || c == 'r') && *(_p + 1) == '"') {
-					 _p++;
-					 
-					 goto case '"';
-					 }
-					 */
-					t.lexem = Lexem(_p, 0);
+					Lexem lexem = Lexem(_p, 0);
 					
-					while (std.ascii.isAlphaNum(*_p) || *_p == '_') {
+					while (isAlphaNum(*_p) || *_p == '_') {
 						_p++;
-						t.lexem.length++;
+						lexem.length++;
 					}
 					
-					if (Types.contains(t.toChars()))
+					if (const Pair* pa = Types.contains(lexem.toChars())) {
 						t.type = Tok.Type;
-					else if (Keywords.contains(t.toChars()))
+						t.pair = pa;
+					} else if (const Pair* pa = Keywords.contains(lexem.toChars())) {
 						t.type = Tok.Keyword;
-					else
+						t.pair = pa;
+					} else {
 						t.type = Tok.Identifier;
+						t.lexem = lexem;
+					}
 					
 					//debug writeln("ID: -> ", t.toChars());
 					
 					return;
-					
-					/*				case '`':
-					 _p++;
-					 t.ptr = _p;
-					 t.len = 0;
-					 t.type = Tok.MultiLineString;
-					 
-					 while (*_p != '`') {
-					 _p++; t.len++;
-					 
-					 switch (*_p) {
-					 case '\n':
-					 this.loc.lineNum++;
-					 break;
-					 case '\r':
-					 _p++;
-					 if (*_p == '\n')
-					 this.loc.lineNum++;
-					 break;
-					 default: break;
-					 }
-					 
-					 if (t.len > ubyte.max)
-					 error("To long multi string: %s", loc, t.toChars());
-					 }
-					 
-					 if (*_p != '`')
-					 error("Unterminated multi string.", loc);
-					 _p++;
-					 
-					 debug writeln(" => [multi] => ", t.toChars(), ':', t.type, ":", loc);
-					 
-					 break;*/
 					
 				case '"':
 					_p++;
@@ -869,20 +960,22 @@ struct Lexer {
 					t.lexem = Lexem(_p, 0);
 					
 					while (*_p != '"') {
-						if (*_p == 0x5C)
+						if (*_p == 0x5C) {
 							_p++;
+							t.lexem.length++;
+						}
 						
 						if (*_p == '\n')
-							error("NL in string", loc);
+							error(loc, "NL in string");
 						
 						_p++;
 						t.lexem.length++;
 					}
 					
-					debug writeln("String (", loc.lineNum, "): -> ", t.toChars());
+					//debug writeln("String@(", loc.lineNum, "): -> ", t.toChars());
 					
 					if (*_p != '"')
-						error("Unterminated string: %s -> %c", loc, t.toChars(), *_p);
+						error(loc, "Unterminated string: %s -> %c", t.toChars(), *_p);
 					
 					_p++;
 					
@@ -895,15 +988,17 @@ struct Lexer {
 					t.lexem = Lexem(_p, 0);
 					
 					while (*_p != 0x27) {
-						if (*_p == 0x5C)
+						if (*_p == 0x5C) {
 							_p++;
+							t.lexem.length++;
+						}
 						
 						_p++;
 						t.lexem.length++;
 					}
 					
 					if (*_p != 0x27)
-						error("Unterminated char: %s -> %c", loc, t.toChars(), *_p);
+						error(loc, "Unterminated char: %s -> %c", t.toChars(), *_p);
 					
 					_p++;
 					

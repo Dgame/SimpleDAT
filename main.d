@@ -8,8 +8,6 @@ import std.getopt : getopt;
 
 import DAT.Lexer;
 
-immutable string Import = "import";
-
 enum Protection : string {
 	Public = "public",
 	Private = "private",
@@ -53,13 +51,13 @@ enum Flags {
 }
 
 void main(string[] args) {
-	version(none) {
+	debug {
 		version(none)
 			const string filename = "D:/D/dmd2/src/phobos/std/csv.d";//"D:/D/dmd2/src/phobos/std/stdio.d";
 		else
 			const string filename = "../../test.d";
 		
-		warnForUnusedImports(filename, 2, true);
+		warnForUnusedImports(filename, Flags.Info | Flags.ShowAll, 2);
 	} else 
 	if (args.length > 1) {
 		string files;
@@ -176,7 +174,7 @@ private Protection checkProtection(ref Lexer lex, bool* block) {
 			default: break;
 		}
 		
-		prev = prev.prev;
+		prev = prev.previous;
 	}
 	
 	return Protection.Private;
@@ -188,14 +186,16 @@ string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 	Imports[string] imps;
 	Imports*[] lastImports;
 	
+	uint[][string] wrongUsed;
+	
 	while (lex.token.type != Tok.Eof) {
 		lex.nextToken();
 		
-		if (lex.token == Import) {
+		if (lex.token.isKeyword() && lex.token.pair.id == Keyword.import_) {
 			bool protBlock = false;
 			Protection prot = checkProtection(lex, &protBlock);
 			
-			if (lex.token.prev.type != Tok.RCurly && !protBlock
+			if (lex.token.previous.type != Tok.RCurly && !protBlock
 			    && lastImports.length != 0 && lastImports[$ - 1].protBlock)
 			{
 				prot = lastImports[$ - 1].prot;
@@ -227,8 +227,26 @@ string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 		} else if (lex.token.isIdentifier()) {
 			foreach (string impName, ref Imports imp; imps) {
 				foreach (ref NamedImport nImp; imp.imports) {
-					if (nImp.name == lex.token.toChars())
+					if (nImp.name == lex.token.toChars()) {
+						if (lex.token.previous.type == Tok.Dot) {
+							Token* prev = lex.token.previous.previous;
+							char[] id;
+							while (prev.type == Tok.Dot || prev.isIdentifier()
+							       || (prev.isType() && prev.pair.id == Type.string_))
+							{
+								id = prev.toChars() ~ id;
+								prev = prev.previous;
+							}
+							
+							if (impName == id) {
+								wrongUsed[impName] ~= lex.loc.lineNum;
+								
+								continue;
+							}
+						}
+						
 						nImp.useLines ~= lex.loc.lineNum;
+					}
 				}
 			}
 		}
@@ -241,8 +259,15 @@ string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 			if (nImp.use < minUse) {
 				if (nImp.use == 0) {
 					if ((imp.prot != Protection.Public && imp.prot != Protection.Package) || flags & Flags.ShowAll) {
-						output ~= format("\tNamed import %s : %s imported on line %d is never used.",
-						                 impName, nImp.name, imp.line);
+						string msg = "never";
+						if (impName in wrongUsed)
+							msg = "wrong";
+						
+						output ~= format("\tNamed import %s : %s imported on line %d is %s used.",
+						                 impName, nImp.name, imp.line, msg);
+						
+						if (impName in wrongUsed)
+							output[$ - 1] ~= text(" On lines: ", wrongUsed[impName]);
 						
 						//if (flags & Flags.Info) {
 						if (imp.prot == Protection.Public || imp.prot == Protection.Package)
