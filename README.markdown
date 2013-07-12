@@ -59,6 +59,6 @@ And for std/stdio.d checked with:
         Named import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]
 </pre>
 
-<h1>Unused/Unserused built-in types</h1>
+<h1>Unused/Underused built-in types</h1>
 <p>It's now possible (but still in progress) to detect unused/underused built-in types.</p>
 <p>Therefore you can use the --varUse and --vuse arguments.</p>
