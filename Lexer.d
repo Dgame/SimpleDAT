@@ -313,7 +313,7 @@ private static immutable Pair[][26] Types =
 	 [Pair(Type.ubyte_, "ubyte"), Pair(Type.ushort_, "ushort"),
 	 Pair(Type.uint_, "uint"), Pair(Type.ulong_, "ulong"),
 	 Pair(Type.ucent_, "ucent")],
-	 null, /// q
+	 [Pair(Type.void_, "void")],
 	 [Pair(Type.wchar_, "wchar"), Pair(Type.wstring_, "wstring")],
 	 null, /// x
 	 null, /// y
@@ -357,10 +357,8 @@ public:
 	Token* next;
 	Token* previous;
 	
-	union {
-		Lexem lexem;
-		const(Pair)* pair;
-	}
+	Lexem lexem;
+	const(Pair)* pair;
 	
 	Tok type;
 	
@@ -491,40 +489,65 @@ struct Lexer {
 	
 	Token* nextToken() {
 		if (this.token.next) {
-			memcpy(&this.token, this.token.next, Token.sizeof);
+			this.token = *this.token.next;
 			
 			goto L1;
 		}
 		
-		this.token.next = new Token();
-		this.token.next.type = Tok.None;
+		Token prev = this.token;
 		
-		Token* prev = new Token();
-		memcpy(prev, &this.token, Token.sizeof);
+		Token t;
+		this.scan(&t);
 		
-		this.scan(this.token.next);
+		prev.next = new Token();
+		memcpy(prev.next, &t, Token.sizeof);
 		
-		this.token = *this.token.next;
-		this.token.previous = prev;
+		this.token = t;
+		
+		this.token.previous = new Token();
+		memcpy(this.token.previous, &prev, Token.sizeof);
+		
+		version(none) {
+			writeln("----");
+			writeln(prev.toChars(), "::", prev.next.toChars());
+			writeln(this.token.toChars());
+			writeln(this.token.previous.toChars(), "::", this.token.previous.next.toChars());
+		}
 		
 	L1:
 		return &this.token;
 	}
 	
 	Token* peekAhead() {
-		if (this.token.next)
-			goto L1;
+		if (!this.token.next)
+			this.token.next = new Token();
 		
-		this.token.next = new Token();
 		this.scan(this.token.next);
 		
-	L1:
+		this.token.next.previous = new Token();
+		memcpy(this.token.next.previous, &this.token, Token.sizeof);
+		
 		return this.token.next;
 	}
 	
-	void scan(Token* t) {
-		t.type = Tok.None;
+	Token* peekAhead2() {
+		Token* t = this.peekAhead();
 		
+		if (!t.next)
+			t.next = new Token();
+		else
+			goto L1;
+		
+		this.scan(t.next);
+		
+		t.next.previous = new Token();
+		memcpy(t.next.previous, t, Token.sizeof);
+		
+	L1:
+		return t.next;
+	}
+	
+	void scan(Token* t) {
 		while (true) {
 			if (loc.lineNum >= this._maxLines) {
 				t.type = Tok.Eof;
@@ -871,6 +894,8 @@ struct Lexer {
 							
 							return;
 						}
+						
+						_p--; /// To catch single 0's
 					}
 					
 					while (isDigit(*_p)) {

@@ -7,42 +7,9 @@ import std.conv : text;
 import std.getopt : getopt;
 
 import DAT.Lexer;
-
-enum Protection : string {
-	Public = "public",
-	Private = "private",
-	Protected = "protected",
-	Package = "package"
-}
-
-struct NamedImport {
-	const char[] name;
-	uint[] useLines;
-	
-	this(const char[] name) {
-		this.name = name;
-	}
-	
-	@property
-	uint use() const pure nothrow {
-		return this.useLines.length;
-	}
-}
-
-struct Imports {
-public:
-	const Protection prot;
-	const uint line;
-	const bool protBlock;
-	
-	NamedImport[] imports;
-	
-	this(Protection prot, uint line, bool protBlock) {
-		this.prot = prot;
-		this.line = line;
-		this.protBlock = protBlock;
-	}
-}
+import DAT.Import;
+import DAT.Stack;
+import DAT.Variable;
 
 enum Flags {
 	None = 0,
@@ -52,20 +19,24 @@ enum Flags {
 
 void main(string[] args) {
 	debug {
-		version(none)
-			const string filename = "D:/D/dmd2/src/phobos/std/csv.d";//"D:/D/dmd2/src/phobos/std/stdio.d";
+		version(all)
+			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d"; /// "D:/D/dmd2/src/phobos/std/csv.d";
 		else
-			const string filename = "../../test.d";
+			const string filename = "../../test.d"; /// "C:/Users/Besitzer/Documents/GitHub/Dgame/Audio/Sound.d";
 		
 		warnForUnusedImports(filename, Flags.Info | Flags.ShowAll, 2);
-	} else 
-	if (args.length > 1) {
+		warnForUnusedVariables(filename, 2);
+	} else if (args.length > 1) {
 		string files;
 		string path;
-		uint minUseCount;
-		bool info, showAll;
+		uint iMinUseCount, vMinUseCount;
+		bool info, showAll, varUse;
 		
-		getopt(args, "f", &files, "d", &path, "use", &minUseCount, "info", &info, "showAll", &showAll);
+		getopt(args,
+		       "f", &files, "d", &path, "iuse",
+		       &iMinUseCount, "info", &info,
+		       "showAll", &showAll,
+		       "vuse", &vMinUseCount, "varUse", &varUse);
 		
 		Flags flags;
 		if (info)
@@ -85,7 +56,7 @@ void main(string[] args) {
 			foreach (string filename; filenames) {
 				if (filename.endsWith(".d")) {
 					writeln("* ", filename);
-					uint ocs = warnForUnusedImports(filename, flags, minUseCount > 0 ? minUseCount : 1);
+					uint ocs = warnForUnusedImports(filename, flags, iMinUseCount > 0 ? iMinUseCount : 1);
 					writeln();
 					
 					if (ocs) {
@@ -96,6 +67,14 @@ void main(string[] args) {
 			}
 			
 			writeln("----\n", total, " occurrences in ", ocFiles, " / ", filenames.length, " files.");
+			
+			if (varUse) {
+				foreach (string filename; filenames) {
+					writeln("* ", filename);
+					warnForUnusedVariables(filename, vMinUseCount > 0 ? vMinUseCount : 1);
+				}
+			}
+			
 		} else if (path.length != 0) {
 			string[] filenames;
 			foreach (string name; dirEntries(path, SpanMode.depth)) {
@@ -109,7 +88,7 @@ void main(string[] args) {
 			string content;
 			foreach (string filename; filenames) {
 				writeln("* ", filename);
-				uint ocs = warnForUnusedImports(filename, flags, minUseCount > 0 ? minUseCount : 1);
+				uint ocs = warnForUnusedImports(filename, flags, iMinUseCount > 0 ? iMinUseCount : 1);
 				writeln();
 				
 				if (ocs) {
@@ -119,9 +98,18 @@ void main(string[] args) {
 			}
 			
 			writeln("----\n", total, " occurrences in ", ocFiles, " / ", filenames.length, " files.");
+			writeln("----\n");
+			
+			if (varUse) {
+				foreach (string filename; filenames) {
+					writeln("* ", filename);
+					warnForUnusedVariables(filename, vMinUseCount > 0 ? vMinUseCount : 1);
+				}
+			}
+			
 		}
 	} else {
-		writeln("--f \t\t scan multiple or one file(s)\n--d \t\t scan a whole path\n--use \t\t for the minimal use (default is 1)\n--info \t\t for used lines\n--showAll \t Show public / package imports");
+		writeln("--f \t\t scan multiple or one file(s)\n--d \t\t scan a whole path\n--iuse \t\t for the minimal import use (default is 1)\n--info \t\t for used lines\n--showAll \t show public / package imports\n--varUse \t detect unused / underused built-in variables (alpha state) \n--vuse \t\t for the minimal variable use (default is 1)");
 	}
 } unittest {
 	string[] output = findUnusedImports("D:/D/dmd2/src/phobos/std/stdio.d", 2, true);
@@ -230,6 +218,7 @@ string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 					if (nImp.name == lex.token.toChars()) {
 						if (lex.token.previous.type == Tok.Dot) {
 							Token* prev = lex.token.previous.previous;
+							
 							char[] id;
 							while (prev.type == Tok.Dot || prev.isIdentifier()
 							       || (prev.isType() && prev.pair.id == Type.string_))
@@ -286,6 +275,135 @@ string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 		
 		if (useLess == imp.imports.length)
 			output[$ - 1] ~= "\n\t - Therefore it is useless to import " ~ impName;
+	}
+	
+	return output;
+}
+
+uint warnForUnusedVariables(string filename, uint minUse = 1) {
+	const string[] warns = findUnusedVariables(filename, minUse);
+	foreach (string msg; warns) {
+		writeln(msg);
+	}
+	
+	if (warns.length == 0) {
+		if (minUse == 1)
+			writeln("\t", "No unused variables.");
+		else
+			writeln("\t", "No underused variables.");
+	}
+	
+	return warns.length;
+}
+
+string[] findUnusedVariables(string filename, uint minUse = 1) {
+	Lexer lex = Lexer(filename);
+	
+	uint curScope = 0;
+	
+	Stack!uint stack;
+	stack.push(curScope);
+	
+	Var[char[]][uint] vars;
+	
+	while (lex.token.type != Tok.Eof) {
+		//		writeln(lex.loc.lineNum);
+		lex.nextToken();
+		
+		
+		if (lex.token.isType()) {
+			auto typeInfo = lex.token.pair;
+			TypeType extTypeInfo;
+			
+		L1:
+			if (lex.peekAhead().isIdentifier()
+			    && (lex.peekAhead2().type == Tok.Assign || lex.peekAhead2().type == Tok.Semicolon))
+			{
+				version(none) {
+					writeln(" Should ID: ", lex.peekAhead().type);
+					lex.nextToken();
+					writeln(lex.token.toChars(), "::", typeInfo.value, " -> ", lex.token.type);
+				} else {
+					lex.nextToken();
+				}
+				
+				const char[] name = lex.token.toChars();
+				version(none) writeln("Var: ", name);
+				
+				uint usage = 0;
+				if (lex.peekAhead().type == Tok.Assign)
+					usage = 1;
+				
+				vars[stack.top()][name] = Var(usage, typeInfo, extTypeInfo, lex.loc.lineNum, 
+				                              stack.top(), name);
+			} else if (lex.peekAhead().isIdentifier()) {
+				if (lex.peekAhead().type == Tok.Star)
+					extTypeInfo = TypeType.Pointer;
+				else if (lex.peekAhead().type == Tok.LBracket)
+					extTypeInfo = TypeType.Array;
+				
+				if (extTypeInfo == TypeType.None)
+					goto L2;
+				
+				while (!lex.peekAhead().isIdentifier()) {
+					lex.nextToken();
+				}
+				
+				goto L1;
+			}
+		} else if (lex.token.isIdentifier()) {
+			const char[] name = lex.token.toChars();
+			
+			int lastScope = -1;
+			for (int i = stack.top(); i >= 0; i--) {
+				if (i in vars && name in vars[i] && lastScope == -1) {
+					//writeln(vars[i][name], "::", i, "::", stack.top(), lastScope);
+					vars[i][name].usage++;
+					
+					lastScope = vars[i][name]._scope;
+				}
+			}
+		}
+		
+	L2:
+		
+		if (lex.token.type == Tok.LCurly) {
+			curScope++;
+			//			writeln("neuer scope [", curScope, "] @ ", lex.loc.lineNum);
+			
+			stack.push(curScope);
+		} else if (lex.token.type == Tok.RCurly) {
+			//			writeln("raus aus [", curScope, "] @ ", lex.loc.lineNum);
+			
+			stack.pop();
+		}
+	}
+	
+	//	writeln(vars);
+	
+	string[] output;
+	
+	foreach (_scope, varMap; vars) {
+		foreach (ref Var var; varMap) {
+			if (var.usage < minUse) {
+				string kind;
+				final switch (var.extInfo) {
+					case TypeType.Array:
+						kind = "array";
+						break;
+					case TypeType.Pointer:
+						kind = "pointer";
+						break;
+					case TypeType.None:
+						kind = "variable";
+						break;
+				}
+				
+				output ~= format("%s %s of type %s (declared on line %d) is %s.",
+				                 kind, var.name, var.typeInfo.value, var.line,
+				                 (minUse == 1 ? "unused" : text("used ", var.usage, " times")));
+			}
+		}
 	}
 	
 	return output;

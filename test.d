@@ -18,6 +18,11 @@ private void _foo() { }
 string fmt() {
 	string str = "one\nnew line";
 
+	{
+		string str;
+		str = "abc";
+	}
+
 	void* p;
 	std.c.string.memcpy(p, &str, str.sizeof);
 	
