@@ -4,9 +4,11 @@ Usage:
 <pre>
 --f              scan multiple or one file(s)
 --d              scan a whole path
---use            for the minimal use (default is 1)
+--iuse           for the minimal import use (default is 1)
 --info           for used lines
---showAll        Show public / package imports
+--showAll        show public / package imports
+--varUse         detect unused / underused built-in variables (alpha state)
+--vuse           for the minimal variable use (default is 1)
 </pre>
 <hr />
 test.d:
@@ -56,3 +58,7 @@ And for std/stdio.d checked with:
 * std/stdio.d
         Named import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]
 </pre>
+
+<h1>Unused/Unserused built-in types</h1>
+<p>It's now possible (but still in progress) to detect unused/underused built-in types.</p>
+<p>Therefore you can use the --varUse and --vuse arguments.</p>
