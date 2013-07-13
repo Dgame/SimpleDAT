@@ -1,4 +1,5 @@
-﻿Check your (named) imports for unused or underused ones.
+Check your (named) imports for unused or underused ones.<br />
+<b>And new</b>: check your (built-in) variables also.
 <hr />
 Usage:
 <pre>
