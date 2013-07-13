@@ -62,4 +62,4 @@ And for std/stdio.d checked with:
 
 <h1>Unused/Underused built-in types</h1>
 <p>It's now possible (but still in progress) to detect unused/underused built-in types.</p>
-<p>Therefore you can use the --varUse and --vuse arguments.</p>
+<p>Therefore you can use the <code>--varUse</code> and <code>--vuse</code> arguments.</p>
