@@ -1,8 +1,8 @@
 import std.stdio;
 import std.file : dirEntries, SpanMode, remove;
-import std.array : split, insertInPlace, join, replace;
+import std.array : split, insertInPlace, join;
 import std.string : strip, format, indexOf, toLower;
-import std.algorithm : endsWith, countUntil;
+import std.algorithm : endsWith;
 import std.conv : text, to;
 import std.getopt : getopt;
 import std.process : executeShell;
@@ -20,7 +20,7 @@ enum Flags {
 
 void main(string[] args) {
 	debug {
-		version(none)
+		version(all)
 			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d"; /// "D:/D/dmd2/src/phobos/std/csv.d";
 		else
 			const string filename = "../../../test.d"; /// "C:/Users/Besitzer/Documents/GitHub/Dgame/Audio/Sound.d";
@@ -162,6 +162,8 @@ uint warnForUnusedImports(string filename, Flags flags, uint minUse = 1) {
 			writeln("\t", "No unused imports.");
 		else
 			writeln("\t", "No underused imports.");
+	} else {
+		writeln("\t", warns.length, (minUse == 1 ? " unused" : " underused"), " imports.");
 	}
 	
 	return warns.length;
