@@ -1,10 +1,11 @@
 import std.stdio;
-import std.file : dirEntries, SpanMode;
-import std.array : split;
-import std.string : strip, format;
-import std.algorithm : endsWith;
-import std.conv : text;
+import std.file : dirEntries, SpanMode, remove;
+import std.array : split, insertInPlace, join;
+import std.string : strip, format, indexOf, toLower;
+import std.algorithm : endsWith, countUntil;
+import std.conv : text, to;
 import std.getopt : getopt;
+import std.process : executeShell;
 
 import DAT.Lexer;
 import DAT.Import;
@@ -22,21 +23,23 @@ void main(string[] args) {
 		version(all)
 			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d"; /// "D:/D/dmd2/src/phobos/std/csv.d";
 		else
-			const string filename = "../../test.d"; /// "C:/Users/Besitzer/Documents/GitHub/Dgame/Audio/Sound.d";
+			const string filename = "../../../test.d"; /// "C:/Users/Besitzer/Documents/GitHub/Dgame/Audio/Sound.d";
 		
+		checkModifier(filename);
 		warnForUnusedImports(filename, Flags.Info | Flags.ShowAll, 2);
 		warnForUnusedVariables(filename, 2);
 	} else if (args.length > 1) {
 		string files;
 		string path;
 		uint iMinUseCount, vMinUseCount;
-		bool info, showAll, varUse;
+		bool info, showAll, varUse, modCheck;
 		
 		getopt(args,
-		       "f", &files, "d", &path, "iuse",
+		       "f", &files, "d", &path, "iUse",
 		       &iMinUseCount, "info", &info,
 		       "showAll", &showAll,
-		       "vuse", &vMinUseCount, "varUse", &varUse);
+		       "vUse", &vMinUseCount, "varUse", &varUse,
+		       "modCheck", &modCheck);
 		
 		Flags flags;
 		if (info)
@@ -70,8 +73,19 @@ void main(string[] args) {
 			
 			if (varUse) {
 				foreach (string filename; filenames) {
-					writeln("* ", filename);
-					warnForUnusedVariables(filename, vMinUseCount > 0 ? vMinUseCount : 1);
+					if (filename.endsWith(".d")) {
+						writeln("* ", filename);
+						warnForUnusedVariables(filename, vMinUseCount > 0 ? vMinUseCount : 1);
+					}
+				}
+			}
+			
+			if (modCheck) {
+				foreach (string filename; filenames) {
+					if (filename.endsWith(".d")) {
+						writeln("* ", filename);
+						checkModifier(filename);
+					}
 				}
 			}
 			
@@ -107,9 +121,16 @@ void main(string[] args) {
 				}
 			}
 			
+			
+			if (modCheck) {
+				foreach (string filename; filenames) {
+					writeln("* ", filename);
+					checkModifier(filename);
+				}
+			}
 		}
 	} else {
-		writeln("--f \t\t scan multiple or one file(s)\n--d \t\t scan a whole path\n--iuse \t\t for the minimal import use (default is 1)\n--info \t\t for used lines\n--showAll \t show public / package imports\n--varUse \t detect unused / underused built-in variables (alpha state) \n--vuse \t\t for the minimal variable use (default is 1)");
+		writeln("--f \t\t scan multiple or one file(s)\n--d \t\t scan a whole path\n--iUse \t\t for the minimal import use (default is 1)\n--info \t\t for used lines\n--showAll \t show public / package imports\n--varUse \t detect unused / underused built-in variables (alpha state) \n--vUse \t\t for the minimal variable use (default is 1) \n--modCheck \t Checks your functions if they could have any more modifier.");
 	}
 } unittest {
 	string[] output = findUnusedImports("D:/D/dmd2/src/phobos/std/stdio.d", 2, true);
@@ -144,6 +165,96 @@ uint warnForUnusedImports(string filename, Flags flags, uint minUse = 1) {
 	}
 	
 	return warns.length;
+}
+
+void checkModifier(string filename) {
+	Lexer lex = Lexer(filename);
+	
+	while (lex.token.type != Tok.Eof) {
+		Mod mod = lex.parseModifier();
+		
+		if (lex.token.isIdentifier() && lex.peekAhead().type == Tok.LParen) {
+			Token old = lex.token;
+			
+			lex.nextToken();
+			lex.skipParents();
+			
+			Mod mod2 = lex.parseModifier();
+			
+			if (lex.token.type == Tok.LCurly) {
+				writeln("----");
+				debug writefln(" - Examine function %s ...", old.toChars());
+				
+				bool result = false;
+				foreach (Mod mod, int res;
+				         TryMods(lex.loc.lineNum, lex._content.splitLines(), mod, mod2))
+				{
+					if (res == 0) {
+						result = true;
+						
+						writefln(" - Function %s could have modifier %s.", old.toChars(), to!string(mod).toLower());
+					}
+				}
+				
+				if (!result) {
+					writefln(" - No need for further modifiers for function %s.", old.toChars());
+				}
+				
+				writeln("----\n");
+			}
+		}
+		
+		lex.nextToken();
+	}
+}
+
+private int[Mod] TryMods(uint lineNr, string[] lines, Mod before, Mod behind) {
+	Mod comb = before ^ behind;
+	
+	string need;
+	int[Mod] result;
+	
+	while (true) {
+		Mod curMod;
+		
+		if (!(comb & Mod.Pure)) {
+			need = " pure";
+			
+			curMod = Mod.Pure;
+		} else if (!(comb & Mod.Const)) {
+			need = " const";
+			
+			curMod = Mod.Const;
+		} else if (!(comb & Mod.Nothrow)) {
+			need = " nothrow";
+			
+			curMod = Mod.Nothrow;
+		} else if (!(comb & Mod.Immutable)) {
+			need = " immutable";
+			
+			curMod = Mod.Immutable;
+		}
+		
+		if (curMod == Mod.None)
+			break;
+		
+		debug writeln("Try mod:", need);
+		
+		comb |= curMod;
+		
+		if (uint pos = lines[lineNr - 1].indexOf('{'))
+			lines[lineNr - 1].insertInPlace(pos - 1, need);
+		
+		File f = File("__test.d", "w+");
+		f.write(lines.join("\n"));
+		f.close();
+		
+		scope(exit) .remove("__test.d");
+		
+		result[curMod] = .executeShell("dmd __test.d").status;
+	}
+	
+	return result;
 }
 
 private Protection checkProtection(ref Lexer lex, bool* block) {

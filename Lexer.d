@@ -342,6 +342,15 @@ private string getTokenValue(Tok tok) pure nothrow {
 	return tok < tokenValues.length ? tokenValues[tok] : "Undefinied Tok";
 }
 
+enum Mod {
+	None = 0,
+	Pure = 1,
+	Const = 2,
+	Immutable = 4,
+	Nothrow = 8,
+	Ref = 0x10
+}
+
 struct Lexem {
 public:
 	immutable(char)* ptr;		 // pointer to first character of this token within buffer
@@ -425,6 +434,7 @@ enum PS = 0x2029;	   // UTF paragraph separator
 
 struct Lexer {
 	const uint _maxLines;
+	string _content;
 	
 	Loc loc; // for error messages
 	immutable(char)* _p; // current character
@@ -451,10 +461,10 @@ struct Lexer {
 		
 		this.loc = Loc(filename, 1);
 		
-		const string content = cast(string) read(filename);
-		this._maxLines = content.splitLines().length;
+		this._content = cast(string) read(filename);
+		this._maxLines = this._content.splitLines().length;
 		
-		_p = &content[0];
+		_p = &this._content[0];
 		
 		if (_p[0] == '#' && _p[1] =='!') {
 			_p += 2;
@@ -516,6 +526,44 @@ struct Lexer {
 		
 	L1:
 		return &this.token;
+	}
+	
+	Token* skipParents() {
+		assert(this.token.type == Tok.LParen);
+		
+		while (this.token.type != Tok.RParen) {
+			this.nextToken();
+		}
+		
+		return this.nextToken();
+	}
+	
+	Mod parseModifier() {
+		Mod mod;
+		
+		do {
+			if (!this.token.isKeyword() || this.peekAhead().type == Tok.LParen)
+				break;
+			
+			switch (this.token.pair.id) {
+				case Keyword.pure_:
+					mod |= Mod.Pure;
+					break;
+				case Keyword.const_:
+					mod |= Mod.Const;
+					break;
+				case Keyword.immutable_:
+					mod |= Mod.Immutable;
+					break;
+				case Keyword.nothrow_:
+					mod |= Mod.Nothrow;
+				default: break;
+			}
+			
+			this.nextToken();
+		} while (mod != Mod.None);
+		
+		return mod;
 	}
 	
 	Token* peekAhead() {
