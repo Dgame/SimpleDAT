@@ -1,6 +1,6 @@
 import std.stdio;
 import std.file : dirEntries, SpanMode, remove;
-import std.array : split, insertInPlace, join;
+import std.array : split, insertInPlace, join, replace;
 import std.string : strip, format, indexOf, toLower;
 import std.algorithm : endsWith, countUntil;
 import std.conv : text, to;
@@ -20,7 +20,7 @@ enum Flags {
 
 void main(string[] args) {
 	debug {
-		version(all)
+		version(none)
 			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d"; /// "D:/D/dmd2/src/phobos/std/csv.d";
 		else
 			const string filename = "../../../test.d"; /// "C:/Users/Besitzer/Documents/GitHub/Dgame/Audio/Sound.d";
@@ -194,6 +194,8 @@ void checkModifier(string filename) {
 						
 						writefln(" - Function %s could have modifier %s.", old.toChars(), to!string(mod).toLower());
 					}
+					
+					// writeln(mod, res);
 				}
 				
 				if (!result) {
@@ -213,6 +215,8 @@ private int[Mod] TryMods(uint lineNr, string[] lines, Mod before, Mod behind) {
 	
 	string need;
 	int[Mod] result;
+	
+	string[] orgLines = lines.dup;
 	
 	while (true) {
 		Mod curMod;
@@ -242,14 +246,19 @@ private int[Mod] TryMods(uint lineNr, string[] lines, Mod before, Mod behind) {
 		
 		comb |= curMod;
 		
-		if (uint pos = lines[lineNr - 1].indexOf('{'))
+		const uint pos = lines[lineNr - 1].indexOf('{');
+		if (pos)
 			lines[lineNr - 1].insertInPlace(pos - 1, need);
 		
 		File f = File("__test.d", "w+");
 		f.write(lines.join("\n"));
 		f.close();
 		
-		scope(exit) .remove("__test.d");
+		scope(exit) {
+			.remove("__test.d");
+			
+			lines = orgLines.dup;
+		}
 		
 		result[curMod] = .executeShell("dmd __test.d").status;
 	}
