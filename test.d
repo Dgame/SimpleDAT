@@ -19,7 +19,7 @@ string fmt() {
 	string str = "one\nnew line";
 
 	{
-		string str;
+		string str_;
 		str = "abc";
 	}
 
@@ -27,4 +27,13 @@ string fmt() {
 	std.c.string.memcpy(p, &str, str.sizeof);
 	
 	return format("%d.%d.%d", 0, 9, 9);
+}
+
+@property
+const(string) bar() pure {
+	return "";
+}
+
+void main() {
+	
 }
