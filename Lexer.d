@@ -108,71 +108,71 @@ enum Tok {
 }
 
 private static immutable string[66] tokenValues = ["Invalid Tok",
-                                                   "=",
-                                                   "@",
-                                                   "&",
-                                                   "&=",
-                                                   "|",
-                                                   "|=",
-                                                   "~=",
-                                                   ":",
-                                                   ",",
-                                                   "--",
-                                                   "/",
-                                                   "/=",
-                                                   "$",
-                                                   ".",
-                                                   "==",
-                                                   "=>",
-                                                   ">",
-                                                   ">=",
-                                                   "#",
-                                                   "++",
-                                                   "{",
-                                                   "[",
-                                                   "<",
-                                                   "<=",
-                                                   "<>=",
-                                                   "<>",
-                                                   "&&",
-                                                   "||",
-                                                   "(",
-                                                   "-",
-                                                   "-=",
-                                                   "%",
-                                                   "%=",
-                                                   "*=",
-                                                   "!",
-                                                   "!=",
-                                                   "!>",
-                                                   "!>=",
-                                                   "!<",
-                                                   "!<=",
-                                                   "!<>",
-                                                   "+",
-                                                   "+=",
-                                                   "^^",
-                                                   "^^=",
-                                                   "}",
-                                                   "]",
-                                                   ")",
-                                                   ";",
-                                                   "<<",
-                                                   "<<=",
-                                                   ">>",
-                                                   ">>=",
-                                                   "..",
-                                                   "*",
-                                                   "?",
-                                                   "~",
-                                                   "!<>=",
-                                                   ">>>",
-                                                   ">>>=",
-                                                   "...",
-                                                   "^",
-                                                   "^=",
-                                                   "\\",
-                                                   "Eof"];
+	"=",
+	"@",
+	"&",
+	"&=",
+	"|",
+	"|=",
+	"~=",
+	":",
+	",",
+	"--",
+	"/",
+	"/=",
+	"$",
+	".",
+	"==",
+	"=>",
+	">",
+	">=",
+	"#",
+	"++",
+	"{",
+	"[",
+	"<",
+	"<=",
+	"<>=",
+	"<>",
+	"&&",
+	"||",
+	"(",
+	"-",
+	"-=",
+	"%",
+	"%=",
+	"*=",
+	"!",
+	"!=",
+	"!>",
+	"!>=",
+	"!<",
+	"!<=",
+	"!<>",
+	"+",
+	"+=",
+	"^^",
+	"^^=",
+	"}",
+	"]",
+	")",
+	";",
+	"<<",
+	"<<=",
+	">>",
+	">>=",
+	"..",
+	"*",
+	"?",
+	"~",
+	"!<>=",
+	">>>",
+	">>>=",
+	"...",
+	"^",
+	"^=",
+	"\\",
+	"Eof"];
 
 const struct Pair {
 public:
@@ -206,64 +206,64 @@ enum Keyword {
 }
 
 private static immutable Pair[][26] Keywords = 
-	[[Pair(Keyword.abstract_, "abstract"), Pair(Keyword.alias_, "alias"),
-	  Pair(Keyword.align_, "align"), Pair(Keyword.asm_, "asm"),
-	  Pair(Keyword.assert_, "assert"), Pair(Keyword.auto_, "auto")],
-	 [Pair(Keyword.body_, "body"), Pair(Keyword.break_, "break")],
-	 [Pair(Keyword.case_, "case"), Pair(Keyword.cast_, "cast"),
-	 Pair(Keyword.catch_, "catch"), Pair(Keyword.cdouble_, "cdouble"),
-	 Pair(Keyword.class_, "class"), Pair(Keyword.const_, "const"),
-	 Pair(Keyword.continue_, "continue")],
-	 [Pair(Keyword.debug_, "debug"), Pair(Keyword.default_, "default"),
-	 Pair(Keyword.delegate_, "delegate"), Pair(Keyword.delete_, "delete"),
-	 Pair(Keyword.deprecated_, "deprecated"), Pair(Keyword.do_, "do")],
-	 [Pair(Keyword.else_, "else"), Pair(Keyword.enum_, "enum"),
-	 Pair(Keyword.export_, "export"), Pair(Keyword.extern_, "extern")],
-	 [Pair(Keyword.false_, "false"), Pair(Keyword.final_, "final"),
-	 Pair(Keyword.finally_, "finally"), Pair(Keyword.for_, "for"),
-	 Pair(Keyword.foreach_, "foreach"),
-	 Pair(Keyword.foreach_reverse_, "foreach_reverse"),
-	 Pair(Keyword.function_, "function")],
-	 [Pair(Keyword.goto_, "goto")],
-	 null, /// h
-	 [Pair(Keyword.if_, "if"), Pair(Keyword.immutable_, "immutable"),
-	 Pair(Keyword.import_, "import"), Pair(Keyword.in_, "in"),
-	 Pair(Keyword.inout_, "inout"), Pair(Keyword.interface_, "interface"),
-	 Pair(Keyword.invariant_, "invariant"), Pair(Keyword.is_, "is")],
-	 null, /// j
-	 null, /// k
-	 [Pair(Keyword.lazy_, "lazy")],
-	 [Pair(Keyword.macro_, "macro"), Pair(Keyword.mixin_, "mixin"),
-	 Pair(Keyword.module_, "module")],
-	 [Pair(Keyword.new_, "new"),
-	 Pair(Keyword.nothrow_, "nothrow"), Pair(Keyword.null_, "null")],
-	 [Pair(Keyword.out_, "out"), Pair(Keyword.override_, "override")],
-	 [Pair(Keyword.package_, "package"), Pair(Keyword.pragma_, "pragma"),
-	 Pair(Keyword.private_, "private"), Pair(Keyword.protected_, "protected"),
-	 Pair(Keyword.public_, "public"), Pair(Keyword.pure_, "pure")],
-	 null, /// q
-	 [Pair(Keyword.ref_, "ref"), Pair(Keyword.return_, "return")],
-	 [Pair(Keyword.scope_, "scope"), Pair(Keyword.shared_, "shared"),
-	 Pair(Keyword.static_, "static"), Pair(Keyword.struct_, "struct"),
-	 Pair(Keyword.super_, "super"), Pair(Keyword.switch_, "switch"),
-	 Pair(Keyword.synchronized_, "synchronized")],
-	 [Pair(Keyword.template_, "template"), Pair(Keyword.this_, "this"),
-	 Pair(Keyword.throw_, "throw"), Pair(Keyword.true_, "true"),
-	 Pair(Keyword.try_, "try"), Pair(Keyword.typedef_, "typedef"),
-	 Pair(Keyword.typeid_, "typeid"), Pair(Keyword.typeof_, "typeof")],
-	 [Pair(Keyword.union_, "union"), Pair(Keyword.unittest_, "unittest")],
-	 [Pair(Keyword.version_, "version"), Pair(Keyword.volatile_, "volatile")],
-	 [Pair(Keyword.while_, "while"), Pair(Keyword.with_, "with")],
-	 null, /// x
-	 null, /// y
-	 [Pair(Keyword._file_, "__FILE__"), Pair(Keyword._module_, "__MODULE__"),
-	 Pair(Keyword._line_, "__LINE__"), Pair(Keyword._function_, "__FUNCTION__"),
-	 Pair(Keyword._pretty_function_, "__PRETTY_FUNCTION__"),
-	 Pair(Keyword.gshared_, "__gshared"), Pair(Keyword.traits_, "__traits"),
-	 Pair(Keyword.vector_, "__vector"), Pair(Keyword.parameters_, "__parameters"),
-	 Pair(Keyword._date_, "__DATE__"), Pair(Keyword._eof_, "__EOF__"),
-	 Pair(Keyword._time_, "__TIME__"), Pair(Keyword._timestamp_, "__TIMESTAMP__"),
-	 Pair(Keyword._vendor_, "__VENDOR__"), Pair(Keyword._version_, "__VERSION__")]];
+[[Pair(Keyword.abstract_, "abstract"), Pair(Keyword.alias_, "alias"),
+	Pair(Keyword.align_, "align"), Pair(Keyword.asm_, "asm"),
+	Pair(Keyword.assert_, "assert"), Pair(Keyword.auto_, "auto")],
+	[Pair(Keyword.body_, "body"), Pair(Keyword.break_, "break")],
+	[Pair(Keyword.case_, "case"), Pair(Keyword.cast_, "cast"),
+	Pair(Keyword.catch_, "catch"), Pair(Keyword.cdouble_, "cdouble"),
+	Pair(Keyword.class_, "class"), Pair(Keyword.const_, "const"),
+	Pair(Keyword.continue_, "continue")],
+	[Pair(Keyword.debug_, "debug"), Pair(Keyword.default_, "default"),
+	Pair(Keyword.delegate_, "delegate"), Pair(Keyword.delete_, "delete"),
+	Pair(Keyword.deprecated_, "deprecated"), Pair(Keyword.do_, "do")],
+	[Pair(Keyword.else_, "else"), Pair(Keyword.enum_, "enum"),
+	Pair(Keyword.export_, "export"), Pair(Keyword.extern_, "extern")],
+	[Pair(Keyword.false_, "false"), Pair(Keyword.final_, "final"),
+	Pair(Keyword.finally_, "finally"), Pair(Keyword.for_, "for"),
+	Pair(Keyword.foreach_, "foreach"),
+	Pair(Keyword.foreach_reverse_, "foreach_reverse"),
+	Pair(Keyword.function_, "function")],
+	[Pair(Keyword.goto_, "goto")],
+	null, /// h
+	[Pair(Keyword.if_, "if"), Pair(Keyword.immutable_, "immutable"),
+	Pair(Keyword.import_, "import"), Pair(Keyword.in_, "in"),
+	Pair(Keyword.inout_, "inout"), Pair(Keyword.interface_, "interface"),
+	Pair(Keyword.invariant_, "invariant"), Pair(Keyword.is_, "is")],
+	null, /// j
+	null, /// k
+	[Pair(Keyword.lazy_, "lazy")],
+	[Pair(Keyword.macro_, "macro"), Pair(Keyword.mixin_, "mixin"),
+	Pair(Keyword.module_, "module")],
+	[Pair(Keyword.new_, "new"),
+	Pair(Keyword.nothrow_, "nothrow"), Pair(Keyword.null_, "null")],
+	[Pair(Keyword.out_, "out"), Pair(Keyword.override_, "override")],
+	[Pair(Keyword.package_, "package"), Pair(Keyword.pragma_, "pragma"),
+	Pair(Keyword.private_, "private"), Pair(Keyword.protected_, "protected"),
+	Pair(Keyword.public_, "public"), Pair(Keyword.pure_, "pure")],
+	null, /// q
+	[Pair(Keyword.ref_, "ref"), Pair(Keyword.return_, "return")],
+	[Pair(Keyword.scope_, "scope"), Pair(Keyword.shared_, "shared"),
+	Pair(Keyword.static_, "static"), Pair(Keyword.struct_, "struct"),
+	Pair(Keyword.super_, "super"), Pair(Keyword.switch_, "switch"),
+	Pair(Keyword.synchronized_, "synchronized")],
+	[Pair(Keyword.template_, "template"), Pair(Keyword.this_, "this"),
+	Pair(Keyword.throw_, "throw"), Pair(Keyword.true_, "true"),
+	Pair(Keyword.try_, "try"), Pair(Keyword.typedef_, "typedef"),
+	Pair(Keyword.typeid_, "typeid"), Pair(Keyword.typeof_, "typeof")],
+	[Pair(Keyword.union_, "union"), Pair(Keyword.unittest_, "unittest")],
+	[Pair(Keyword.version_, "version"), Pair(Keyword.volatile_, "volatile")],
+	[Pair(Keyword.while_, "while"), Pair(Keyword.with_, "with")],
+	null, /// x
+	null, /// y
+	[Pair(Keyword._file_, "__FILE__"), Pair(Keyword._module_, "__MODULE__"),
+	Pair(Keyword._line_, "__LINE__"), Pair(Keyword._function_, "__FUNCTION__"),
+	Pair(Keyword._pretty_function_, "__PRETTY_FUNCTION__"),
+	Pair(Keyword.gshared_, "__gshared"), Pair(Keyword.traits_, "__traits"),
+	Pair(Keyword.vector_, "__vector"), Pair(Keyword.parameters_, "__parameters"),
+	Pair(Keyword._date_, "__DATE__"), Pair(Keyword._eof_, "__EOF__"),
+	Pair(Keyword._time_, "__TIME__"), Pair(Keyword._timestamp_, "__TIMESTAMP__"),
+	Pair(Keyword._vendor_, "__VENDOR__"), Pair(Keyword._version_, "__VERSION__")]];
 
 enum Type {
 	None,
@@ -286,44 +286,44 @@ enum Type {
 }
 
 private static immutable Pair[][26] Types = 
-	[null, /// a
-	 [Pair(Type.bool_, "bool"), Pair(Type.byte_, "byte")],
-	 [Pair(Type.cent_, "cent"), Pair(Type.cfloat_, "cfloat"),
-	 Pair(Type.cdouble_, "cdouble"), Pair(Type.creal_, "creal"),
-	 Pair(Type.char_, "char")],
-	 [Pair(Type.double_, "double"), Pair(Type.dchar_, "dchar"),
-	 Pair(Type.dstring_, "dstring")],
-	 null, /// e
-	 [Pair(Type.float_, "float")],
-	 null, /// g
-	 null, /// h
-	 [Pair(Type.ifloat_, "ifloat"), Pair(Type.idouble_, "idouble"),
-	 Pair(Type.int_, "int"), Pair(Type.ireal_, "ireal")],
-	 null, /// j
-	 null, /// k
-	 [Pair(Type.long_, "long")],
-	 null, /// m
-	 null, /// n
-	 null, /// o
-	 [Pair(Type.ptrdiff_t_, "ptrdiff_t")],
-	 null, /// q
-	 [Pair(Type.real_, "real")],
-	 [Pair(Type.short_, "short"), Pair(Type.string_, "string")],
-	 null, /// t
-	 [Pair(Type.ubyte_, "ubyte"), Pair(Type.ushort_, "ushort"),
-	 Pair(Type.uint_, "uint"), Pair(Type.ulong_, "ulong"),
-	 Pair(Type.ucent_, "ucent")],
-	 [Pair(Type.void_, "void")],
-	 [Pair(Type.wchar_, "wchar"), Pair(Type.wstring_, "wstring")],
-	 null, /// x
-	 null, /// y
-	 null /// z
-	 ];
+[null, /// a
+	[Pair(Type.bool_, "bool"), Pair(Type.byte_, "byte")],
+	[Pair(Type.cent_, "cent"), Pair(Type.cfloat_, "cfloat"),
+	Pair(Type.cdouble_, "cdouble"), Pair(Type.creal_, "creal"),
+	Pair(Type.char_, "char")],
+	[Pair(Type.double_, "double"), Pair(Type.dchar_, "dchar"),
+	Pair(Type.dstring_, "dstring")],
+	null, /// e
+	[Pair(Type.float_, "float")],
+	null, /// g
+	null, /// h
+	[Pair(Type.ifloat_, "ifloat"), Pair(Type.idouble_, "idouble"),
+	Pair(Type.int_, "int"), Pair(Type.ireal_, "ireal")],
+	null, /// j
+	null, /// k
+	[Pair(Type.long_, "long")],
+	null, /// m
+	null, /// n
+	null, /// o
+	[Pair(Type.ptrdiff_t_, "ptrdiff_t")],
+	null, /// q
+	[Pair(Type.real_, "real")],
+	[Pair(Type.short_, "short"), Pair(Type.string_, "string")],
+	null, /// t
+	[Pair(Type.ubyte_, "ubyte"), Pair(Type.ushort_, "ushort"),
+	Pair(Type.uint_, "uint"), Pair(Type.ulong_, "ulong"),
+	Pair(Type.ucent_, "ucent")],
+	[Pair(Type.void_, "void")],
+	[Pair(Type.wchar_, "wchar"), Pair(Type.wstring_, "wstring")],
+	null, /// x
+	null, /// y
+	null /// z
+];
 
 private const(Pair)* contains(ref immutable Pair[][26] array, const char[] value) {
 	int c = -1;
 	if (value[0] != '_')
-		c = value[0] - 'a';
+	c = value[0] - 'a';
 	else
 		c = 25;
 	
@@ -557,6 +557,7 @@ struct Lexer {
 					break;
 				case Keyword.nothrow_:
 					mod |= Mod.Nothrow;
+					break;
 				default: break;
 			}
 			

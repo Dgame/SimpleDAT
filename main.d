@@ -6,6 +6,7 @@ import std.algorithm : endsWith;
 import std.conv : text, to;
 import std.getopt : getopt;
 import std.process : executeShell;
+import std.path : dirName;
 
 import DAT.Lexer;
 import DAT.Import;
@@ -20,10 +21,10 @@ enum Flags {
 
 void main(string[] args) {
 	debug {
-		version(all)
+		version(none)
 			const string filename = "D:/D/dmd2/src/phobos/std/stdio.d"; /// "D:/D/dmd2/src/phobos/std/csv.d";
 		else
-			const string filename = "../../../test.d"; /// "C:/Users/Besitzer/Documents/GitHub/Dgame/Audio/Sound.d";
+			const string filename = dirName(__FILE__) ~ "/test.d"; /// "C:/Users/Besitzer/Documents/GitHub/Dgame/Audio/Sound.d";
 		
 		checkModifier(filename);
 		warnForUnusedImports(filename, Flags.Info | Flags.ShowAll, 2);
@@ -133,12 +134,12 @@ void main(string[] args) {
 		writeln("--f \t\t scan multiple or one file(s)\n--d \t\t scan a whole path\n--iUse \t\t for the minimal import use (default is 1)\n--info \t\t for used lines\n--showAll \t show public / package imports\n--varUse \t detect unused / underused built-in variables (alpha state) \n--vUse \t\t for the minimal variable use (default is 1) \n--modCheck \t Checks your functions if they could have any more modifier.");
 	}
 } unittest {
-	string[] output = findUnusedImports("D:/D/dmd2/src/phobos/std/stdio.d", 2, true);
+	string[] output = findUnusedImports("C:/D/dmd2/src/phobos/std/stdio.d", Flags.None, 2);
 	
 	assert(output.length == 1);
-	assert(output[0] == "\tNamed import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times. On lines: [2504]", "Output is: " ~ output[0]);
+	assert(output[0] == "\tNamed import std.c.stdio : FHND_WCHAR imported on line 35 is used 1 times.", "Output is: " ~ output[0]);
 	
-	output = findUnusedImports("../../test.d", 2, false);
+	output = findUnusedImports("C:/Users/rswhite/Documents/GitHub/SimpleDAT/test.d", Flags.None, 2);
 	
 	assert(output.length == 8);
 	assert(output[0] == "\tNamed import std.string : format imported on line 6 is used 1 times.", "Output is: " ~ output[0]);
@@ -148,7 +149,7 @@ void main(string[] args) {
 	assert(output[4] == "\tNamed import std.array : split imported on line 8 is never used.", "Output is: " ~ output[4]);
 	assert(output[5] == "\tNamed import std.array : join imported on line 8 is never used.", "Output is: " ~ output[5]);
 	assert(output[6] == "\tNamed import std.array : empty imported on line 8 is used 1 times.", "Output is: " ~ output[6]);
-	assert(output[7] == "\tNamed import std.file : read imported on line 5 is never used.", "Output is: " ~ output[7]);
+	assert(output[7] == "\tNamed import std.c.string : memcpy imported on line 10 is wrong used. On lines: [27]", "Output is: " ~ output[7]);
 }
 
 uint warnForUnusedImports(string filename, Flags flags, uint minUse = 1) {
@@ -187,10 +188,14 @@ void checkModifier(string filename) {
 				writeln("----");
 				debug writefln(" - Examine function %s ...", old.toChars());
 				
+				const int[Mod] allMods = TryMods(lex.loc.lineNum, lex._content.splitLines(), mod, mod2);
+				// const bool Immu = Mod.Immutable in allMods && allMods[Mod.Immutable] == 0;
+				
 				bool result = false;
-				foreach (Mod mod, int res;
-				         TryMods(lex.loc.lineNum, lex._content.splitLines(), mod, mod2))
-				{
+				foreach (Mod mod, const int res; allMods) {
+					// if (mod == Mod.Const && Immu && res == 0)
+					// continue;
+					
 					if (res == 0) {
 						result = true;
 						
@@ -218,7 +223,7 @@ private int[Mod] TryMods(uint lineNr, string[] lines, Mod before, Mod behind) {
 	string need;
 	int[Mod] result;
 	
-	string[] orgLines = lines.dup;
+	const string orgLine = lines[lineNr - 1][];
 	
 	while (true) {
 		Mod curMod;
@@ -250,7 +255,7 @@ private int[Mod] TryMods(uint lineNr, string[] lines, Mod before, Mod behind) {
 		
 		const uint pos = lines[lineNr - 1].indexOf('{');
 		if (pos)
-			lines[lineNr - 1].insertInPlace(pos - 1, need);
+		lines[lineNr - 1].insertInPlace(pos - 1, need);
 		
 		File f = File("__test.d", "w+");
 		f.write(lines.join("\n"));
@@ -259,7 +264,7 @@ private int[Mod] TryMods(uint lineNr, string[] lines, Mod before, Mod behind) {
 		scope(exit) {
 			.remove("__test.d");
 			
-			lines = orgLines.dup;
+			lines[lineNr - 1] = orgLine[];
 		}
 		
 		result[curMod] = .executeShell("dmd __test.d").status;
@@ -277,8 +282,11 @@ private Protection checkProtection(ref Lexer lex, bool* block) {
 			case Protection.Private:
 			case Protection.Protected:
 			case Protection.Public:
-				if (prev.next.type == Tok.Colon || prev.next.type == Tok.LCurly)
+				if (prev.next.type == Tok.Colon
+				    || prev.next.type == Tok.LCurly)
+				{
 					*block = true;
+				}
 				
 				return cast(Protection) prev.toChars();
 			default: break;
@@ -378,11 +386,11 @@ string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 						                 impName, nImp.name, imp.line, msg);
 						
 						if (impName in wrongUsed)
-							output[$ - 1] ~= text(" On lines: ", wrongUsed[impName]);
+						output[$ - 1] ~= text(" On lines: ", wrongUsed[impName]);
 						
 						//if (flags & Flags.Info) {
 						if (imp.prot == Protection.Public || imp.prot == Protection.Package)
-							output[$ - 1] ~= "\n\t - But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
+						output[$ - 1] ~= "\n\t - But maybe '" ~ nImp.name ~ "' is used in other modules. [" ~ imp.prot ~ "]";
 						else
 							useLess++;
 						//}
@@ -391,12 +399,12 @@ string[] findUnusedImports(string filename, Flags flags, uint minUse = 1) {
 					output ~= format("\tNamed import %s : %s imported on line %d is used %d times.", impName, nImp.name, imp.line, nImp.use);
 				
 				if (flags & Flags.Info && nImp.use != 0)
-					output[$ - 1] ~= text(" On lines: ", nImp.useLines);
+				output[$ - 1] ~= text(" On lines: ", nImp.useLines);
 			}
 		}
 		
-		if (useLess == imp.imports.length)
-			output[$ - 1] ~= "\n\t - Therefore it is useless to import " ~ impName;
+		if (useLess == imp.imports.length && flags & Flags.Info)
+		output[$ - 1] ~= "\n\t - Therefore it is useless to import " ~ impName;
 	}
 	
 	return output;
