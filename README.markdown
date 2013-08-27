@@ -7,7 +7,6 @@ Usage:
 --d              scan a whole path
 --iuse           for the minimal import use (default is 1)
 --info           for used lines
---showAll        show public / package imports
 --varUse         detect unused / underused built-in variables (alpha state)
 --vuse           for the minimal variable use (default is 1)
 </pre>
@@ -36,7 +35,7 @@ string fmt() {
 </pre>
 
 Checked with:
-<code>DAT --f test.d --use 2 --info true</code>
+<code>DAT --f test.d --use 2 --info</code>
 
 <pre>
 * test.d
@@ -53,7 +52,7 @@ Checked with:
 </pre>
 
 And for std/stdio.d checked with:
-<code>DAT --f std/stdio.d --use 2 --info true</code>
+<code>DAT --f std/stdio.d --use 2 --info</code>
 
 <pre>
 * std/stdio.d
